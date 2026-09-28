@@ -1,0 +1,211 @@
+{
+ "mutants": [
+  {
+   "index": 0,
+   "file": "daa/geometry.py",
+   "description": "scalar tcpa sign flipped",
+   "caught": true,
+   "pytest_summary": "1 failed, 3 passed in 2.45s",
+   "seconds": 5.4
+  },
+  {
+   "index": 1,
+   "file": "daa/geometry.py",
+   "description": "vectorised CPA not clamped to t >= 0",
+   "caught": true,
+   "pytest_summary": "1 failed, 22 passed in 9.54s",
+   "seconds": 12.5
+  },
+  {
+   "index": 2,
+   "file": "daa/geometry.py",
+   "description": "scalar circle exit uses wrong root",
+   "caught": true,
+   "pytest_summary": "1 failed, 10 passed in 6.59s",
+   "seconds": 9.3
+  },
+  {
+   "index": 3,
+   "file": "daa/geometry.py",
+   "description": "vectorised tau_mod coefficient sign",
+   "caught": true,
+   "pytest_summary": "1 failed, 15 passed in 12.00s",
+   "seconds": 14.8
+  },
+  {
+   "index": 4,
+   "file": "daa/geometry.py",
+   "description": "vectorised vertical interval bound",
+   "caught": true,
+   "pytest_summary": "1 failed, 8 passed in 2.47s",
+   "seconds": 6.4
+  },
+  {
+   "index": 5,
+   "file": "daa/geometry.py",
+   "description": "lookahead time ignored",
+   "caught": true,
+   "pytest_summary": "1 failed, 1 passed in 2.23s",
+   "seconds": 6.3
+  },
+  {
+   "index": 6,
+   "file": "daa/geometry.py",
+   "description": "CPA time threshold doubled (vectorised)",
+   "caught": true,
+   "pytest_summary": "1 failed, 3 passed in 2.53s",
+   "seconds": 6.1
+  },
+  {
+   "index": 7,
+   "file": "daa/geometry.py",
+   "description": "loss onset takes last segment",
+   "caught": true,
+   "pytest_summary": "1 failed, 45 passed in 18.26s",
+   "seconds": 21.7
+  },
+  {
+   "index": 8,
+   "file": "daa/alerting.py",
+   "description": "tier index lost",
+   "caught": true,
+   "pytest_summary": "1 failed, 1 passed in 2.50s",
+   "seconds": 6.2
+  },
+  {
+   "index": 9,
+   "file": "daa/alerting.py",
+   "description": "M-of-N off by one",
+   "caught": true,
+   "pytest_summary": "1 failed, 4 passed in 2.39s",
+   "seconds": 6.0
+  },
+  {
+   "index": 10,
+   "file": "daa/alerting.py",
+   "description": "hold time off by one",
+   "caught": true,
+   "pytest_summary": "1 failed, 4 passed in 2.06s",
+   "seconds": 5.3
+  },
+  {
+   "index": 11,
+   "file": "daa/metrics.py",
+   "description": "Wilson half-width term dropped",
+   "caught": true,
+   "pytest_summary": "1 failed, 48 passed in 18.83s",
+   "seconds": 22.1
+  },
+  {
+   "index": 12,
+   "file": "daa/metrics.py",
+   "description": "required lead boundary",
+   "caught": true,
+   "pytest_summary": "1 failed, 49 passed in 19.60s",
+   "seconds": 22.8
+  },
+  {
+   "index": 13,
+   "file": "daa/metrics.py",
+   "description": "alerts after onset counted",
+   "caught": true,
+   "pytest_summary": "1 failed, 50 passed in 15.08s",
+   "seconds": 18.2
+  },
+  {
+   "index": 14,
+   "file": "daa/sim.py",
+   "description": "turn rate limit doubled",
+   "caught": true,
+   "pytest_summary": "1 failed, 36 passed in 9.21s",
+   "seconds": 11.7
+  },
+  {
+   "index": 15,
+   "file": "daa/sim.py",
+   "description": "vertical acceleration unbounded",
+   "caught": true,
+   "pytest_summary": "1 failed, 36 passed in 9.22s",
+   "seconds": 12.3
+  },
+  {
+   "index": 16,
+   "file": "daa/sim.py",
+   "description": "left-turn preference",
+   "caught": true,
+   "pytest_summary": "1 failed, 44 passed in 13.65s",
+   "seconds": 16.6
+  },
+  {
+   "index": 17,
+   "file": "daa/sim.py",
+   "description": "altitude floor ignored",
+   "caught": true,
+   "pytest_summary": "1 failed, 43 passed in 12.49s",
+   "seconds": 15.4
+  },
+  {
+   "index": 18,
+   "file": "daa/sim.py",
+   "description": "response delay ignored",
+   "caught": true,
+   "pytest_summary": "1 failed, 46 passed in 16.23s",
+   "seconds": 19.6
+  },
+  {
+   "index": 19,
+   "file": "daa/sensors.py",
+   "description": "alpha-beta gain formula",
+   "caught": true,
+   "pytest_summary": "1 failed, 46 passed in 18.16s",
+   "seconds": 22.1
+  },
+  {
+   "index": 20,
+   "file": "daa/sensors.py",
+   "description": "dropout recovery inverted",
+   "caught": true,
+   "pytest_summary": "1 failed, 53 passed in 22.08s",
+   "seconds": 26.4
+  },
+  {
+   "index": 21,
+   "file": "daa/encounters.py",
+   "description": "encounter back-propagation sign",
+   "caught": true,
+   "pytest_summary": "1 failed, 46 passed in 15.40s",
+   "seconds": 23.0
+  },
+  {
+   "index": 22,
+   "file": "cpp/daa_core.hpp",
+   "description": "C++ circle exit perturbed by 1e-9",
+   "caught": true,
+   "pytest_summary": "1 failed, 10 passed in 6.41s",
+   "seconds": 9.3
+  },
+  {
+   "index": 23,
+   "file": "cpp/daa_core.hpp",
+   "description": "C++ tier off by one",
+   "caught": true,
+   "pytest_summary": "1 failed, 13 passed in 7.36s",
+   "seconds": 9.7
+  },
+  {
+   "index": 24,
+   "file": "cpp/daa_core.hpp",
+   "description": "C++ CPA time boundary < instead of <=",
+   "caught": false,
+   "pytest_summary": "57 passed in 13.48s",
+   "seconds": 15.8
+  }
+ ],
+ "baseline": {
+  "returncode": 0,
+  "summary": "57 passed in 16.59s",
+  "seconds": 19.9
+ },
+ "caught": 24,
+ "total": 25
+}
