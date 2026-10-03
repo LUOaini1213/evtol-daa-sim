@@ -1,211 +1,995 @@
 {
  "mutants": [
   {
+   "status": "caught",
+   "tests": 4,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_cpa_tiers",
+     "phase": "call",
+     "message": "assert 0 == 2"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 3 passed in 0.95s",
+   "seconds": 4.45,
+   "junit": "mutation_evidence/mutant_000/pytest.xml",
+   "log": "mutation_evidence/mutant_000/pytest.log",
+   "build_log": "mutation_evidence/mutant_000/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 0,
    "file": "daa/geometry.py",
    "description": "scalar tcpa sign flipped",
    "caught": true,
-   "pytest_summary": "1 failed, 3 passed in 4.42s",
-   "seconds": 11.5
+   "pytest_summary": "1 failed, 3 passed in 0.95s"
   },
   {
+   "status": "caught",
+   "tests": 78,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_geometry::test_vectorised_cpa_matches_scalar",
+     "phase": "call",
+     "message": "assert (-17.83084676...8413465904234) == (-17.83084676...6003127383091)\n  At index 1 diff: 1639.0781482112639 != 1824.755675903231\n  Use -v to get more diff"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 77 passed in 39.01s",
+   "seconds": 42.59,
+   "junit": "mutation_evidence/mutant_001/pytest.xml",
+   "log": "mutation_evidence/mutant_001/pytest.log",
+   "build_log": "mutation_evidence/mutant_001/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 1,
    "file": "daa/geometry.py",
    "description": "vectorised CPA not clamped to t >= 0",
    "caught": true,
-   "pytest_summary": "1 failed, 22 passed in 9.84s",
-   "seconds": 12.6
+   "pytest_summary": "1 failed, 77 passed in 39.01s"
   },
   {
+   "status": "caught",
+   "tests": 66,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_cpp_agreement::test_wcv_interval_agrees[0.0]",
+     "phase": "call",
+     "message": "AssertionError: 0\nassert ('1' == '1'\n    1) == (None is not None)"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 65 passed in 10.77s",
+   "seconds": 14.39,
+   "junit": "mutation_evidence/mutant_002/pytest.xml",
+   "log": "mutation_evidence/mutant_002/pytest.log",
+   "build_log": "mutation_evidence/mutant_002/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 2,
    "file": "daa/geometry.py",
    "description": "scalar circle exit uses wrong root",
    "caught": true,
-   "pytest_summary": "1 failed, 10 passed in 5.94s",
-   "seconds": 13.8
+   "pytest_summary": "1 failed, 65 passed in 10.77s"
   },
   {
+   "status": "caught",
+   "tests": 71,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_cpp_agreement::test_alert_levels_agree[wcv_tau]",
+     "phase": "call",
+     "message": "assert [3, 3, 3, 3, 3, 3, ...] == [3, 3, 3, 3, 3, 3, ...]\n  At index 44 diff: 3 != 1\n  Use -v to get more diff"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 70 passed in 39.08s",
+   "seconds": 42.7,
+   "junit": "mutation_evidence/mutant_003/pytest.xml",
+   "log": "mutation_evidence/mutant_003/pytest.log",
+   "build_log": "mutation_evidence/mutant_003/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 3,
    "file": "daa/geometry.py",
-   "description": "vectorised tau_mod coefficient sign",
+   "description": "vectorised tau_mod entry sign",
    "caught": true,
-   "pytest_summary": "1 failed, 15 passed in 7.61s",
-   "seconds": 10.0
+   "pytest_summary": "1 failed, 70 passed in 39.08s"
   },
   {
+   "status": "caught",
+   "tests": 9,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_cpa_alerts_are_subset_of_wcv_alerts",
+     "phase": "call",
+     "message": "assert False\n +  where False = <built-in method all of numpy.ndarray object at 0x000002569F4B3D50>()\n +    where <built-in method all of numpy.ndarray object at 0x000002569F4B3D50> = array([0, 0, 0, ..., 0, 0, 0], dtype=int8) >= array([0, 0, 0, ..., 0, 0, 0], dtype=int8).all"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 8 passed in 0.98s",
+   "seconds": 4.81,
+   "junit": "mutation_evidence/mutant_004/pytest.xml",
+   "log": "mutation_evidence/mutant_004/pytest.log",
+   "build_log": "mutation_evidence/mutant_004/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 4,
    "file": "daa/geometry.py",
    "description": "vectorised vertical interval bound",
    "caught": true,
-   "pytest_summary": "1 failed, 8 passed in 1.62s",
-   "seconds": 3.9
+   "pytest_summary": "1 failed, 8 passed in 0.98s"
   },
   {
+   "status": "caught",
+   "tests": 2,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_wcv_tiers_by_time_to_loss",
+     "phase": "call",
+     "message": "assert 0 == 3"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 1 passed in 0.91s",
+   "seconds": 4.49,
+   "junit": "mutation_evidence/mutant_005/pytest.xml",
+   "log": "mutation_evidence/mutant_005/pytest.log",
+   "build_log": "mutation_evidence/mutant_005/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 5,
    "file": "daa/geometry.py",
    "description": "lookahead time ignored",
    "caught": true,
-   "pytest_summary": "1 failed, 1 passed in 1.50s",
-   "seconds": 4.1
+   "pytest_summary": "1 failed, 1 passed in 0.91s"
   },
   {
+   "status": "caught",
+   "tests": 4,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_cpa_tiers",
+     "phase": "call",
+     "message": "assert 0 == 2"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 3 passed in 0.91s",
+   "seconds": 4.44,
+   "junit": "mutation_evidence/mutant_006/pytest.xml",
+   "log": "mutation_evidence/mutant_006/pytest.log",
+   "build_log": "mutation_evidence/mutant_006/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 6,
    "file": "daa/geometry.py",
    "description": "CPA time threshold doubled (vectorised)",
    "caught": true,
-   "pytest_summary": "1 failed, 3 passed in 1.61s",
-   "seconds": 3.6
+   "pytest_summary": "1 failed, 3 passed in 0.91s"
   },
   {
+   "status": "caught",
+   "tests": 204,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_manoeuvre_reduces_loss_on_small_set",
+     "phase": "call",
+     "message": "assert 0 < (0.5 * 0)\n +  where 0 = <built-in method sum of numpy.ndarray object at 0x000001EA019FB450>()\n +    where <built-in method sum of numpy.ndarray object at 0x000001EA019FB450> = array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]).sum\n +      where array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]) = ClosedLoopResult(lowc=array([False, False, False, False, False, False, False, False, False,\\n       False, False, False...   [ 1.18658401e+04,  1.16344658e+02,  4.46680337e+02],\\n        [ 1.19253685e+04,  1.16050200e+02,  4.46479114e+02]]])).lowc\n +  and   0 = <built-in method sum of numpy.ndarray object at 0x000001EA019F97D0>()\n +    where <built-in method sum of numpy.ndarray object at 0x000001EA019F97D0> = array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]).sum\n +      where array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]) = ClosedLoopResult(lowc=array([False, False, False, False, False, False, False, False, False,\\n       False, False, False...   [ 1.18658401e+04,  1.16344658e+02,  4.46680337e+02],\\n        [ 1.19253685e+04,  1.16050200e+02,  4.46479114e+02]]])).lowc"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 203 passed in 42.73s",
+   "seconds": 46.3,
+   "junit": "mutation_evidence/mutant_007/pytest.xml",
+   "log": "mutation_evidence/mutant_007/pytest.log",
+   "build_log": "mutation_evidence/mutant_007/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 7,
    "file": "daa/geometry.py",
    "description": "loss onset takes last segment",
    "caught": true,
-   "pytest_summary": "1 failed, 46 passed in 12.18s",
-   "seconds": 14.3
+   "pytest_summary": "1 failed, 203 passed in 42.73s"
   },
   {
+   "status": "caught",
+   "tests": 2,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_wcv_tiers_by_time_to_loss",
+     "phase": "call",
+     "message": "assert 2 == 1"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 1 passed in 0.96s",
+   "seconds": 4.89,
+   "junit": "mutation_evidence/mutant_008/pytest.xml",
+   "log": "mutation_evidence/mutant_008/pytest.log",
+   "build_log": "mutation_evidence/mutant_008/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 8,
    "file": "daa/alerting.py",
    "description": "tier index lost",
    "caught": true,
-   "pytest_summary": "1 failed, 1 passed in 1.48s",
-   "seconds": 3.5
+   "pytest_summary": "1 failed, 1 passed in 0.96s"
   },
   {
+   "status": "caught",
+   "tests": 5,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_filter_identity_when_trivial",
+     "phase": "call",
+     "message": "assert False\n +  where False = <built-in method all of numpy.ndarray object at 0x00000229AF5B3390>()\n +    where <built-in method all of numpy.ndarray object at 0x00000229AF5B3390> = array([[0, 0,...], dtype=int8) == array([[0, 2,...], dtype=int8)\n      Use -v to get more diff.all"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 4 passed in 0.94s",
+   "seconds": 4.61,
+   "junit": "mutation_evidence/mutant_009/pytest.xml",
+   "log": "mutation_evidence/mutant_009/pytest.log",
+   "build_log": "mutation_evidence/mutant_009/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 9,
    "file": "daa/alerting.py",
    "description": "M-of-N off by one",
    "caught": true,
-   "pytest_summary": "1 failed, 4 passed in 1.42s",
-   "seconds": 3.4
+   "pytest_summary": "1 failed, 4 passed in 0.94s"
   },
   {
+   "status": "caught",
+   "tests": 5,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_alerting::test_filter_identity_when_trivial",
+     "phase": "call",
+     "message": "assert False\n +  where False = <built-in method all of numpy.ndarray object at 0x000001AB5D713390>()\n +    where <built-in method all of numpy.ndarray object at 0x000001AB5D713390> = array([[0, 2,...], dtype=int8) == array([[0, 2,...], dtype=int8)\n      Use -v to get more diff.all"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 4 passed in 1.10s",
+   "seconds": 4.83,
+   "junit": "mutation_evidence/mutant_010/pytest.xml",
+   "log": "mutation_evidence/mutant_010/pytest.log",
+   "build_log": "mutation_evidence/mutant_010/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 10,
    "file": "daa/alerting.py",
    "description": "hold time off by one",
    "caught": true,
-   "pytest_summary": "1 failed, 4 passed in 1.56s",
-   "seconds": 3.5
+   "pytest_summary": "1 failed, 4 passed in 1.10s"
   },
   {
+   "status": "caught",
+   "tests": 207,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_metrics_sensors::test_wilson_known_values",
+     "phase": "call",
+     "message": "assert ((0.0, 0.1387663999314446) == (0.0, 0.0)\n  At index 1 diff: 0.1387663999314446 != 0.0\n  Use -v to get more diff)"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 206 passed in 44.18s",
+   "seconds": 47.77,
+   "junit": "mutation_evidence/mutant_011/pytest.xml",
+   "log": "mutation_evidence/mutant_011/pytest.log",
+   "build_log": "mutation_evidence/mutant_011/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 11,
    "file": "daa/metrics.py",
    "description": "Wilson half-width term dropped",
    "caught": true,
-   "pytest_summary": "1 failed, 49 passed in 12.89s",
-   "seconds": 14.9
+   "pytest_summary": "1 failed, 206 passed in 44.18s"
   },
   {
+   "status": "caught",
+   "tests": 208,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_metrics_sensors::test_lead_time_and_missed",
+     "phase": "call",
+     "message": "assert [True, True, True, False] == [False, True, True, False]\n  At index 0 diff: True != False\n  Use -v to get more diff"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 207 passed in 44.50s",
+   "seconds": 48.5,
+   "junit": "mutation_evidence/mutant_012/pytest.xml",
+   "log": "mutation_evidence/mutant_012/pytest.log",
+   "build_log": "mutation_evidence/mutant_012/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 12,
    "file": "daa/metrics.py",
    "description": "required lead boundary",
    "caught": true,
-   "pytest_summary": "1 failed, 50 passed in 12.54s",
-   "seconds": 14.5
+   "pytest_summary": "1 failed, 207 passed in 44.50s"
   },
   {
+   "status": "caught",
+   "tests": 209,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_metrics_sensors::test_alert_after_onset_does_not_count",
+     "phase": "call",
+     "message": "AssertionError: assert (False)\n +  where False = <ufunc 'isnan'>(-1.0)\n +    where <ufunc 'isnan'> = np.isnan"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 208 passed in 44.04s",
+   "seconds": 47.72,
+   "junit": "mutation_evidence/mutant_013/pytest.xml",
+   "log": "mutation_evidence/mutant_013/pytest.log",
+   "build_log": "mutation_evidence/mutant_013/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 13,
    "file": "daa/metrics.py",
    "description": "alerts after onset counted",
    "caught": true,
-   "pytest_summary": "1 failed, 51 passed in 12.34s",
-   "seconds": 14.4
+   "pytest_summary": "1 failed, 208 passed in 44.04s"
   },
   {
+   "status": "caught",
+   "tests": 16,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_behavior_review::test_emergency_maximizes_feasible_predicted_separation[2500.0]",
+     "phase": "call",
+     "message": "assert 1.177414841140247 == 0.7639015550045373 \u00b1 1.0e-12\n  comparison failed\n  Obtained: 1.177414841140247\n  Expected: 0.7639015550045373 \u00b1 1.0e-12"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 15 passed in 1.06s",
+   "seconds": 4.61,
+   "junit": "mutation_evidence/mutant_014/pytest.xml",
+   "log": "mutation_evidence/mutant_014/pytest.log",
+   "build_log": "mutation_evidence/mutant_014/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 14,
    "file": "daa/sim.py",
    "description": "turn rate limit doubled",
    "caught": true,
-   "pytest_summary": "1 failed, 37 passed in 7.04s",
-   "seconds": 9.4
+   "pytest_summary": "1 failed, 15 passed in 1.06s"
   },
   {
+   "status": "caught",
+   "tests": 195,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_step_dynamics_respects_limits",
+     "phase": "call",
+     "message": "AssertionError: assert False\n +  where False = <built-in method all of numpy.ndarray object at 0x0000020A7FCDE490>()\n +    where <built-in method all of numpy.ndarray object at 0x0000020A7FCDE490> = array([3.11063706, 5.31591356, 7.42601551, ..., 2.53117884, 6.21764814,\\n       4.48850828]) <= (2.45 + 1e-12).all\n +      where array([3.11063706, 5.31591356, 7.42601551, ..., 2.53117884, 6.21764814,\\n       4.48850828]) = <ufunc 'absolute'>((array([ 5., -5., -5., ...,  5.,  5., -5.]) - array([ 1.88936294,  0.31591356,  2.42601551, ...,  2.46882116,\\n       -1.21764814, -0.51149172])))\n +        where <ufunc 'absolute'> = np.abs"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 194 passed in 40.54s",
+   "seconds": 44.08,
+   "junit": "mutation_evidence/mutant_015/pytest.xml",
+   "log": "mutation_evidence/mutant_015/pytest.log",
+   "build_log": "mutation_evidence/mutant_015/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 15,
    "file": "daa/sim.py",
    "description": "vertical acceleration unbounded",
    "caught": true,
-   "pytest_summary": "1 failed, 37 passed in 7.10s",
-   "seconds": 9.1
+   "pytest_summary": "1 failed, 194 passed in 40.54s"
   },
   {
+   "status": "caught",
+   "tests": 203,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_head_on_prefers_right_turn",
+     "phase": "call",
+     "message": "assert 0.5235987755982988 < 0"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 202 passed in 42.27s",
+   "seconds": 45.83,
+   "junit": "mutation_evidence/mutant_016/pytest.xml",
+   "log": "mutation_evidence/mutant_016/pytest.log",
+   "build_log": "mutation_evidence/mutant_016/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 16,
    "file": "daa/sim.py",
    "description": "left-turn preference",
    "caught": true,
-   "pytest_summary": "1 failed, 45 passed in 10.25s",
-   "seconds": 12.5
+   "pytest_summary": "1 failed, 202 passed in 42.27s"
   },
   {
+   "status": "caught",
+   "tests": 202,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_vertical_candidates_respect_floor",
+     "phase": "call",
+     "message": "assert 10.0 >= 150.0"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 201 passed in 41.90s",
+   "seconds": 45.48,
+   "junit": "mutation_evidence/mutant_017/pytest.xml",
+   "log": "mutation_evidence/mutant_017/pytest.log",
+   "build_log": "mutation_evidence/mutant_017/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 17,
    "file": "daa/sim.py",
    "description": "altitude floor ignored",
    "caught": true,
-   "pytest_summary": "1 failed, 44 passed in 10.94s",
-   "seconds": 13.1
+   "pytest_summary": "1 failed, 201 passed in 41.90s"
   },
   {
+   "status": "caught",
+   "tests": 205,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_response_delay_is_respected",
+     "phase": "call",
+     "message": "assert 11.605241369299058 < 1e-06\n +  where 11.605241369299058 = <built-in method max of numpy.ndarray object at 0x0000016D37F5F210>()\n +    where <built-in method max of numpy.ndarray object at 0x0000016D37F5F210> = array([2.23154828e-14, 2.03725925e-14, 1.73251717e-14, 2.99072864e-14,\\n       2.27376320e-14, 3.92449534e-14, 1.820260...1.16052414e+01, 1.16052414e+01, 1.16052414e+01,\\n       1.16052414e+01, 1.16052414e+01, 1.16052414e+01, 1.16052414e+01]).max"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 204 passed in 42.96s",
+   "seconds": 46.53,
+   "junit": "mutation_evidence/mutant_018/pytest.xml",
+   "log": "mutation_evidence/mutant_018/pytest.log",
+   "build_log": "mutation_evidence/mutant_018/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 18,
    "file": "daa/sim.py",
    "description": "response delay ignored",
    "caught": true,
-   "pytest_summary": "1 failed, 47 passed in 11.68s",
-   "seconds": 13.8
+   "pytest_summary": "1 failed, 204 passed in 42.96s"
   },
   {
+   "status": "caught",
+   "tests": 211,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_metrics_sensors::test_alpha_beta_gains_match_riccati",
+     "phase": "call",
+     "message": "assert 0.04471360222900972 == 0.022356801114504856 \u00b1 2.2e-08\n  comparison failed\n  Obtained: 0.04471360222900972\n  Expected: 0.022356801114504856 \u00b1 2.2e-08"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 210 passed in 44.22s",
+   "seconds": 47.77,
+   "junit": "mutation_evidence/mutant_019/pytest.xml",
+   "log": "mutation_evidence/mutant_019/pytest.log",
+   "build_log": "mutation_evidence/mutant_019/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 19,
    "file": "daa/sensors.py",
    "description": "alpha-beta gain formula",
    "caught": true,
-   "pytest_summary": "1 failed, 47 passed in 12.42s",
-   "seconds": 14.5
+   "pytest_summary": "1 failed, 210 passed in 44.22s"
   },
   {
+   "status": "caught",
+   "tests": 212,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_metrics_sensors::test_gilbert_loss_fraction",
+     "phase": "call",
+     "message": "assert 0.0585175 == 0.2 \u00b1 1.0e-02\n  comparison failed\n  Obtained: 0.0585175\n  Expected: 0.2 \u00b1 1.0e-02"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 211 passed in 43.15s",
+   "seconds": 46.73,
+   "junit": "mutation_evidence/mutant_020/pytest.xml",
+   "log": "mutation_evidence/mutant_020/pytest.log",
+   "build_log": "mutation_evidence/mutant_020/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 20,
    "file": "daa/sensors.py",
    "description": "dropout recovery inverted",
    "caught": true,
-   "pytest_summary": "1 failed, 54 passed in 12.93s",
-   "seconds": 15.1
+   "pytest_summary": "1 failed, 211 passed in 43.15s"
   },
   {
+   "status": "caught",
+   "tests": 204,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_manoeuvres::test_manoeuvre_reduces_loss_on_small_set",
+     "phase": "call",
+     "message": "assert 0 < (0.5 * 0)\n +  where 0 = <built-in method sum of numpy.ndarray object at 0x000001D8DD0DD650>()\n +    where <built-in method sum of numpy.ndarray object at 0x000001D8DD0DD650> = array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]).sum\n +      where array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]) = ClosedLoopResult(lowc=array([False, False, False, False, False, False, False, False, False,\\n       False, False, False...   [ 1.24224815e+04,  1.16344658e+02,  4.27251278e+02],\\n        [ 1.24848071e+04,  1.16050200e+02,  4.27050056e+02]]])).lowc\n +  and   0 = <built-in method sum of numpy.ndarray object at 0x000001D8DD0DEEB0>()\n +    where <built-in method sum of numpy.ndarray object at 0x000001D8DD0DEEB0> = array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]).sum\n +      where array([False, False, False, False, False, False, False, False, False,\\n       False, False, False, False, False, False,...False, False, False,\\n       False, False, False, False, False, False, False, False, False,\\n       False, False, False]) = ClosedLoopResult(lowc=array([False, False, False, False, False, False, False, False, False,\\n       False, False, False...   [ 1.24224815e+04,  1.16344658e+02,  4.27251278e+02],\\n        [ 1.24848071e+04,  1.16050200e+02,  4.27050056e+02]]])).lowc"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 203 passed in 40.69s",
+   "seconds": 44.3,
+   "junit": "mutation_evidence/mutant_021/pytest.xml",
+   "log": "mutation_evidence/mutant_021/pytest.log",
+   "build_log": "mutation_evidence/mutant_021/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 21,
    "file": "daa/encounters.py",
    "description": "encounter back-propagation sign",
    "caught": true,
-   "pytest_summary": "1 failed, 47 passed in 8.72s",
-   "seconds": 10.8
+   "pytest_summary": "1 failed, 203 passed in 40.69s"
   },
   {
+   "status": "caught",
+   "tests": 66,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_cpp_agreement::test_wcv_interval_agrees[0.0]",
+     "phase": "call",
+     "message": "assert 1.0000036354540498e-09 == 0.0"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 65 passed in 13.29s",
+   "seconds": 16.84,
+   "junit": "mutation_evidence/mutant_022/pytest.xml",
+   "log": "mutation_evidence/mutant_022/pytest.log",
+   "build_log": "mutation_evidence/mutant_022/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 22,
    "file": "cpp/daa_core.hpp",
    "description": "C++ circle exit perturbed by 1e-9",
    "caught": true,
-   "pytest_summary": "1 failed, 10 passed in 5.50s",
-   "seconds": 7.8
+   "pytest_summary": "1 failed, 65 passed in 13.29s"
   },
   {
+   "status": "caught",
+   "tests": 69,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_cpp_agreement::test_alert_levels_agree[cpa]",
+     "phase": "call",
+     "message": "assert [2, 2, 2, 2, 2, 2, ...] == [3, 3, 3, 3, 3, 3, ...]\n  At index 0 diff: 2 != 3\n  Use -v to get more diff"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 68 passed in 23.49s",
+   "seconds": 27.03,
+   "junit": "mutation_evidence/mutant_023/pytest.xml",
+   "log": "mutation_evidence/mutant_023/pytest.log",
+   "build_log": "mutation_evidence/mutant_023/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 23,
    "file": "cpp/daa_core.hpp",
    "description": "C++ tier off by one",
    "caught": true,
-   "pytest_summary": "1 failed, 13 passed in 7.19s",
-   "seconds": 9.5
+   "pytest_summary": "1 failed, 68 passed in 23.49s"
   },
   {
+   "status": "caught",
+   "tests": 69,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_cpp_agreement::test_alert_levels_agree[cpa]",
+     "phase": "call",
+     "message": "assert [3, 3, 3, 3, 3, 3, ...] == [3, 3, 3, 3, 3, 3, ...]\n  At index 11 diff: 0 != 2\n  Use -v to get more diff"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 68 passed in 23.70s",
+   "seconds": 27.23,
+   "junit": "mutation_evidence/mutant_024/pytest.xml",
+   "log": "mutation_evidence/mutant_024/pytest.log",
+   "build_log": "mutation_evidence/mutant_024/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
    "index": 24,
    "file": "cpp/daa_core.hpp",
    "description": "C++ CPA time boundary < instead of <=",
    "caught": true,
-   "pytest_summary": "1 failed, 13 passed in 8.20s",
-   "seconds": 10.5
+   "pytest_summary": "1 failed, 68 passed in 23.70s"
+  },
+  {
+   "status": "caught",
+   "tests": 11,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_behavior_review::test_track_and_alert_prefix_do_not_read_future[1]",
+     "phase": "call",
+     "message": "AssertionError: \nArrays are not equal\n\nMismatched elements: 1 / 3 (33.3%)\nMax absolute difference: 20.\nMax relative difference: 0.61928037\n x: array([[-12.29555 , -18.835408, -14.350174]])\n y: array([[-32.29555 , -18.835408, -14.350174]])"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 10 passed in 0.96s",
+   "seconds": 4.53,
+   "junit": "mutation_evidence/mutant_025/pytest.xml",
+   "log": "mutation_evidence/mutant_025/pytest.log",
+   "build_log": "mutation_evidence/mutant_025/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
+   "index": 25,
+   "file": "daa/sensors.py",
+   "description": "noncooperative initial velocity leaks future report",
+   "caught": true,
+   "pytest_summary": "1 failed, 10 passed in 0.96s"
+  },
+  {
+   "status": "caught",
+   "tests": 17,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_behavior_review::test_emergency_maximizes_feasible_predicted_separation[3000.0]",
+     "phase": "call",
+     "message": "assert 1.0415150978919083 == 1.1783910907801756 \u00b1 1.0e-12\n  comparison failed\n  Obtained: 1.0415150978919083\n  Expected: 1.1783910907801756 \u00b1 1.0e-12"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 16 passed in 1.13s",
+   "seconds": 4.64,
+   "junit": "mutation_evidence/mutant_026/pytest.xml",
+   "log": "mutation_evidence/mutant_026/pytest.log",
+   "build_log": "mutation_evidence/mutant_026/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
+   "index": 26,
+   "file": "daa/sim.py",
+   "description": "emergency chooses cheapest clear instead of maximum separation",
+   "caught": true,
+   "pytest_summary": "1 failed, 16 passed in 1.13s"
+  },
+  {
+   "status": "caught",
+   "tests": 43,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_behavior_review::test_generator_checks_nominal_altitude_through_full_horizon",
+     "phase": "call",
+     "message": "AssertionError: assert False\n +  where False = <function all at 0x0000019B820A10B0>(array([ 64.04712723, -20.52902328, 294.95916413]) >= 30.0)\n +    where <function all at 0x0000019B820A10B0> = np.all\n +    and   array([ 64.04712723, -20.52902328, 294.95916413]) = <ufunc 'minimum'>(array([733.06341257, 710.19855227, 294.95916413]), array([ 64.04712723, -20.52902328, 298.71441094]))\n +      where <ufunc 'minimum'> = np.minimum"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 42 passed in 1.17s",
+   "seconds": 4.7,
+   "junit": "mutation_evidence/mutant_027/pytest.xml",
+   "log": "mutation_evidence/mutant_027/pytest.log",
+   "build_log": "mutation_evidence/mutant_027/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
+   "index": 27,
+   "file": "daa/encounters.py",
+   "description": "generator altitude check stops before full horizon",
+   "caught": true,
+   "pytest_summary": "1 failed, 42 passed in 1.17s"
+  },
+  {
+   "status": "caught",
+   "tests": 20,
+   "failures": 1,
+   "errors": 0,
+   "skipped": 0,
+   "failure_cases": [
+    {
+     "name": "tests.test_behavior_review::test_paired_statistics_reject_invalid_pair_arrays[x0-y0-paired_bootstrap_diff]",
+     "phase": "call",
+     "message": "Failed: DID NOT RAISE <class 'ValueError'>"
+    }
+   ],
+   "reason": "test call failure",
+   "returncode": 1,
+   "summary": "1 failed, 19 passed in 1.15s",
+   "seconds": 4.67,
+   "junit": "mutation_evidence/mutant_028/pytest.xml",
+   "log": "mutation_evidence/mutant_028/pytest.log",
+   "build_log": "mutation_evidence/mutant_028/cpp-build.log",
+   "build_returncode": 0,
+   "timeout_process": null,
+   "index": 28,
+   "file": "daa/metrics.py",
+   "description": "paired metrics accept unequal input lengths",
+   "caught": true,
+   "pytest_summary": "1 failed, 19 passed in 1.15s"
   }
  ],
  "baseline": {
+  "status": "passed",
+  "tests": 236,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "failure_cases": [],
+  "reason": "all collected tests passed",
   "returncode": 0,
-  "summary": "58 passed in 19.14s",
-  "seconds": 25.6
+  "summary": "236 passed in 59.44s",
+  "seconds": 62.98,
+  "junit": "mutation_evidence/baseline/pytest.xml",
+  "log": "mutation_evidence/baseline/pytest.log",
+  "build_log": "mutation_evidence/baseline/cpp-build.log",
+  "build_returncode": 0,
+  "timeout_process": null
  },
- "caught": 25,
- "total": 25
+ "selected_indices": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28
+ ],
+ "artifacts_dir": "mutation_evidence",
+ "cpp_required": true,
+ "total": 29,
+ "caught": 29,
+ "survived": 0,
+ "invalid": 0,
+ "status": "complete",
+ "complete_full_matrix": true,
+ "evidence_archive": "mutation_evidence.zip",
+ "evidence_archive_sha256": "a0f97eaca8a4154c1c283585bc3897c092e4f283007d37778adccb1c5d70bdec",
+ "source_test_config_sha256": {
+  "config/default.json": "d6f5a684d26e0c192ebddce64d6e9f30979c78b5ccdf66af5244678f9e81ee99",
+  "cpp/build.py": "9abdfcf6caa35c29612fa7519151e280c0a7c2134024fbf4636414b7a6cf50d6",
+  "cpp/daa_cli.cpp": "8c85b89bb7694981081c2fde1277ecd988a232d1b297d3613b495781ba66af07",
+  "cpp/daa_core.hpp": "e228349ef97fff34db9c1dcd356bf699c5dda5a95f1f8f1948302228775f6f05",
+  "daa/__init__.py": "60532b3f5a007673cadb308b713fec09ad1f26449313dcdcacf2d6f99aa16312",
+  "daa/alerting.py": "3f01adbd302865c8684bcc35b9c2cad459fcf8bad2cb60ebed3b8d3b1f5aa3a5",
+  "daa/encounters.py": "ebb7fed04907462e3311f0b090111998db3e883614ed1ab9150c59ce0a02ece4",
+  "daa/geometry.py": "8498d098e1400aa9caeb984dc94bc6a9c70ad2c02200d4b486743a45c2ba41e0",
+  "daa/metrics.py": "c07c3356271b93c0203c4fdd45cce00523e69f9abbcd8ccaab891f7d4fee5855",
+  "daa/sensors.py": "cacff1ee490d73dac08889c3c36ed75999f720607b8af329e9bf1865fe166583",
+  "daa/sim.py": "09c78f15d3e59642698df7abb5895f6074c4b80f9b05dda019ff567691e9d1bd",
+  "pytest.ini": "ddfcf6e0017476e9b9e8e55559c80e166c21f4f1ac242c7468dc85ad9dc69e52",
+  "requirements.txt": "152a2e397cb4bbcbab86933d2aa9790f85931d77fb29b7e94e47243d60dc0a47",
+  "scripts/make_readme.py": "dff70da5782b5343afe4ec6bdae7574229f4c44c2af3174916542f8b2cbf95cc",
+  "scripts/mutation_check.py": "84354cbb7916c6a87caab309148bf93b5b9a998db4413048b3a410b07e459ac1",
+  "scripts/run_eval.py": "f1aa7a91f068c61cb43c67b9b37bd7cda63fbc27f978476e8200322fe29d63f8",
+  "tests/conftest.py": "c73e1a09e9381999e78518d303be1592f766f76f2d5960f8ab456bafa242e5cc",
+  "tests/test_alerting.py": "ec0f5ae343dbfb348c883851cbe615ff817fc3c44369404ddb10cd959d1acad3",
+  "tests/test_behavior_review.py": "52a26ffeabc64a84b5a28c245752fd1c2df35028a1f84fec579ee4e6df5a0ac3",
+  "tests/test_build.py": "1bd7f4565175eb2c9d11122cb37d242e51f8679add2cd28b92b66416a2b652e5",
+  "tests/test_cpp_agreement.py": "30efa828c396a570ff14b17ed1e07b24e08ab3262690ac1436c4a29ab4e5c412",
+  "tests/test_geometry.py": "f9ff6bca098ea58a94b7b2aa4b5c327714f4341e3450ffe2404a3a2674e07f60",
+  "tests/test_geometry_review.py": "0a4114d566acbbe6a510470f7fddf35b0fa8f0f403c7fa594c56cccc58bcf937",
+  "tests/test_manoeuvres.py": "d6f94741f230c154c8b55fb3a9176b3e962b7cdfc70cf409f7b84180fc3f1262",
+  "tests/test_metrics_sensors.py": "fad889cbed9bb205f255cd71d6d69eabb771e4e7cce154b133d2634e859a1168",
+  "tests/test_mutation_runner.py": "f74e3ce722cc2e4a8c254419c5072469ef0c57898292dd5192d52a901512ff14"
+ },
+ "evidence_member_sha256": {
+  "mutation_evidence/baseline/pytest.xml": "925b67069521651e810c73b911834003aef3074687f444dd01fde158fd12ba3d",
+  "mutation_evidence/baseline/pytest.log": "4cc71b96213595273d24429b2ae37a319fa523609a6ae0d28f2e4f5574d372bf",
+  "mutation_evidence/baseline/cpp-build.log": "710650fb9137f181744d7e8299d454dd1a160fbb985d53f0c198da1ae32149f6",
+  "mutation_evidence/mutant_000/pytest.xml": "082e2323fc8dbb163ce5490449444c5c6f843f9a3af1336be1ee55c43883485e",
+  "mutation_evidence/mutant_000/pytest.log": "f8eb922822688dd6ee6df26dbcf08d5fbc7f73287b9e84d51c8e8ffbe9ccbb5f",
+  "mutation_evidence/mutant_000/cpp-build.log": "94b38ab3e872daecbea151d5f659cc0de684bbff2f86a4e0e6999f80d4d747c8",
+  "mutation_evidence/mutant_001/pytest.xml": "6dce7ca68315851135bad58abd8bc6412437aef13cfd6e74acb0310c9fece0d5",
+  "mutation_evidence/mutant_001/pytest.log": "444c472e89309d7405a75809fd7725a1e9c64ab973fef6c3be66bb85e360313a",
+  "mutation_evidence/mutant_001/cpp-build.log": "2253d795fd5f25742bf9b0f89411dd5c67e38c8c9d23f655799a82ed9e1e3e50",
+  "mutation_evidence/mutant_002/pytest.xml": "3a6aaefc24c48b1b636eb68340c150e78ff40b6d5847368bb7249799d0caa327",
+  "mutation_evidence/mutant_002/pytest.log": "98d40482dee0bbdfa4e3b7f61e9062d305c0526c8ecb7714864eeec551561f45",
+  "mutation_evidence/mutant_002/cpp-build.log": "9a0475240049aaba25801105409672404cfb759a20b48d9baea0b8e967e82a4f",
+  "mutation_evidence/mutant_003/pytest.xml": "073e2776d7f494fa553db4e5af39833cca8933935b1c5a7eb48b8fa6bf18392a",
+  "mutation_evidence/mutant_003/pytest.log": "cc7c156ab8593edfdcb5fb5c4497765d883dea9511d7f325fe9b4b543262116d",
+  "mutation_evidence/mutant_003/cpp-build.log": "89c9e7d2804b2ace8fd979d0f8307fe9bcd46481921eb3d97bfe7d44322ddc9a",
+  "mutation_evidence/mutant_004/pytest.xml": "b13f8f2db1eac6a6ade7f1000078916cdbc0ed71d44a9349b8d2ed3ba70e7c5c",
+  "mutation_evidence/mutant_004/pytest.log": "d7200318b60308d89cf2cb34ef0b1f699d8a5da9e13bcc13e1a97f9dda4e3352",
+  "mutation_evidence/mutant_004/cpp-build.log": "d0e0aa08d315c757afd90a2fb6b50900b785942abf9593306f7fb6114bc99ac8",
+  "mutation_evidence/mutant_005/pytest.xml": "a7c6f4d57e689993e6e30d4d0dbef642fd2e327012403ca854e7f22cea4c79f1",
+  "mutation_evidence/mutant_005/pytest.log": "7a45a606110d110dc6afb0b83e964865462fcf72643f677027c131bf317daf5f",
+  "mutation_evidence/mutant_005/cpp-build.log": "3ae52063e66d9847db14674a1afd12d4185369c4c27a063c8fd64d870d803207",
+  "mutation_evidence/mutant_006/pytest.xml": "14eb1cdb728e2e4d11b2f948d3d43964bcffd1969cff35f1ad07ec6e0f0a5029",
+  "mutation_evidence/mutant_006/pytest.log": "364cc60f72a27f6bef7f1d1132ce74fe50ce685d451fedba07fcdd9271d4c69b",
+  "mutation_evidence/mutant_006/cpp-build.log": "d0685f48e342b8f9b24c121ed9c04f0ae78dd25ffd8b37a9be98bd4faf81ed5a",
+  "mutation_evidence/mutant_007/pytest.xml": "b5b1a883df9bac3b9c8c34cf3e82123e02a741329493c86d665eed936a565ced",
+  "mutation_evidence/mutant_007/pytest.log": "35ac67099a0599458ff77df0eea82fbf167bfdd9d3f60822ca6c490bf80bce9b",
+  "mutation_evidence/mutant_007/cpp-build.log": "ad8c542a6c1737c395ded01a7670dfa39bc366112ebcfba4b47f86145c83b56b",
+  "mutation_evidence/mutant_008/pytest.xml": "0defdb3a4740d37bfe34d2cf7d2e0756f3d5fdc2ab860402eeb00e3b90200353",
+  "mutation_evidence/mutant_008/pytest.log": "eb268affba697e290d52bdca4718bf2937f33346a393a2be12b3f54f9691c24b",
+  "mutation_evidence/mutant_008/cpp-build.log": "86d8b3473d856e7fd7ea68ffb5e70b1c8ec5b4ac234a1f5e4a61392efac169ef",
+  "mutation_evidence/mutant_009/pytest.xml": "30e9e4d9cd2a118233986227108c66bf7ce354a58bd3c7fda0492d34958bfe14",
+  "mutation_evidence/mutant_009/pytest.log": "d4ba0704734640901c25dd337386b3be70772e484b896ba6572013df45511f1c",
+  "mutation_evidence/mutant_009/cpp-build.log": "624d6097b187bdc72f963e5f14c27f15234e953b0d435874b2d64456b6d9ef68",
+  "mutation_evidence/mutant_010/pytest.xml": "597c8defe7c870740d9ce34946375369f77424353eed13481b1126403857d0c7",
+  "mutation_evidence/mutant_010/pytest.log": "2a462402120034f3b8c21f1dc2cf13e5b94572ec092c15a0c1df8bac8f8c93c4",
+  "mutation_evidence/mutant_010/cpp-build.log": "ebd9560c74edba23fbea9fb18f29684c6558f7b8a7385008559ee8c59db6e56c",
+  "mutation_evidence/mutant_011/pytest.xml": "fcb8dd98dfd14d3d3331b1d59148c376f1c206defc6e5e830d495b8f09409ca7",
+  "mutation_evidence/mutant_011/pytest.log": "c0eaecbd8b8fa4699a5dcb450b9170b7b09fcb3a4afcdc7f79ee6ea6959aa68c",
+  "mutation_evidence/mutant_011/cpp-build.log": "a37c6009aa9445131a265d9d2a4144eda047ca5274d69d1e9d0d95f0bfeb552f",
+  "mutation_evidence/mutant_012/pytest.xml": "18d338f5d1b6b4921e7f678eadf363bf7d434f901da7afcdfb36ce49f3e17ec9",
+  "mutation_evidence/mutant_012/pytest.log": "8c241f14e579e73cdb85f8b76aae583d170b3be5d3d54bfecc3abfdf01508753",
+  "mutation_evidence/mutant_012/cpp-build.log": "9847adbabf8c46255ae4a7e4563e6647d7815cc0f325e7911ce4c1ded0ff9e75",
+  "mutation_evidence/mutant_013/pytest.xml": "5a9246c830e1182be8a02d2d2da6fd79724bffac01d3784ed8268c2378ca038a",
+  "mutation_evidence/mutant_013/pytest.log": "95cce7f5524a93e1513ab1f221d6bc156b0137b2155c456b83a838e186d824ce",
+  "mutation_evidence/mutant_013/cpp-build.log": "6bf4b501b6b79b3fba6184350f32595a18dff299dfe2bb1d61a68ebc44940e46",
+  "mutation_evidence/mutant_014/pytest.xml": "48f6a4fdbfc558277c5e2b40032f27379eb3e3525486fe57041669f817b875de",
+  "mutation_evidence/mutant_014/pytest.log": "ac8a089b26933afca9c3dd9526cb01378fd23fc8bb974dcfa69832904ad80fcf",
+  "mutation_evidence/mutant_014/cpp-build.log": "3ffb3fb3e7dce88838a7bd83013944b86db4b24cf9e7198e40cfa95d1e70a81c",
+  "mutation_evidence/mutant_015/pytest.xml": "dbbb3d4b7e87d6081f06cf6484934aee2082065ec123a80839ec9b07cecd1bce",
+  "mutation_evidence/mutant_015/pytest.log": "e03e6d58ca54e8d6592e96d72c955dbabc5823dad5599b956c6c122ef9d06b03",
+  "mutation_evidence/mutant_015/cpp-build.log": "0471fe50e4ff47f84c7fe6a6017b24146512a703c9b3920b8e3ec2ddf37ee4aa",
+  "mutation_evidence/mutant_016/pytest.xml": "8c4b2d02043c40dade43d2077f3042173e7e509f2b8f85e4d296e57cf5d38c1e",
+  "mutation_evidence/mutant_016/pytest.log": "9b103d839a5c2cb1611ec030d97897b0d1858ee9f9bf348cbccb65482ec5934d",
+  "mutation_evidence/mutant_016/cpp-build.log": "ba3710e08f34a84f901a9357f15580fbc331f1c9d6aed16728499cace2ee3d4f",
+  "mutation_evidence/mutant_017/pytest.xml": "0982ee32fce83585558e3651872f6cac564787b3e9f1044cb87b71b0e68fca02",
+  "mutation_evidence/mutant_017/pytest.log": "aa073e6b7fd36b96826cf0d4ef05d5ad33b2f75ce1553dcb926854e78ee18af0",
+  "mutation_evidence/mutant_017/cpp-build.log": "567883d9bb6f157e6e58565eaa10aec6756ba60bf996b400c23a3d0cc37bd949",
+  "mutation_evidence/mutant_018/pytest.xml": "84b875bf080098fd40cb903b18106ae8d665deb01281b76f65864024ba8b8581",
+  "mutation_evidence/mutant_018/pytest.log": "6ad5e53450fc79df767d941dd1ff0e92c8d70b47a3fe7d28698937b5665be41f",
+  "mutation_evidence/mutant_018/cpp-build.log": "b8ac241c6152fb40551ee4247994f5009e418e11d417c0abffacb1b90e2f4df7",
+  "mutation_evidence/mutant_019/pytest.xml": "9384f0cfdcb8d02bdbf7fad9a76e1132ba9b6d370461f399209743d073706dba",
+  "mutation_evidence/mutant_019/pytest.log": "6cbb222718525a7fff126bf096ce6337cbd103575f79658f77d0219fe3c791fc",
+  "mutation_evidence/mutant_019/cpp-build.log": "2097a1564ead96c32e5b79026cc04129d3892d3c5d3c27e1a2702a7f3e62a4d3",
+  "mutation_evidence/mutant_020/pytest.xml": "6f083c67f8a7bdf569d7ab3804ac2c7bcded8454cfffed5bd41e2439fa022cdf",
+  "mutation_evidence/mutant_020/pytest.log": "f8059e678cb1f7316077c29d0c2b177abea7482521d8c1ed5a6dcdc4a30b6667",
+  "mutation_evidence/mutant_020/cpp-build.log": "ba9dafdafd6c61453b4020b55224e4252ddb40ba824aa4df9de2c9ec841debfe",
+  "mutation_evidence/mutant_021/pytest.xml": "512e2349b4d5ae9024750a2eaeab15f2fcc67276136fefea3851b776e6cb7c5c",
+  "mutation_evidence/mutant_021/pytest.log": "1b3851f71e12a140c0a7eff151b24a2122a5a070d2813e127e853578210a51a4",
+  "mutation_evidence/mutant_021/cpp-build.log": "1d84fc20c90fd006a6a225683c148b1544cf7af504b0816a5cfd217075798511",
+  "mutation_evidence/mutant_022/pytest.xml": "cdb4438968ef0fbf1872267745f4e66c2eb8d9bcec796d9d80eeadb3997d3c58",
+  "mutation_evidence/mutant_022/pytest.log": "07f5b6972fe99e4b82e5c41c8429dabc8539bb97291c1c7954ba4710a560c04a",
+  "mutation_evidence/mutant_022/cpp-build.log": "74ab521a0cdee388bd8e8ff5baeddb638dea0b3935926ea68ed77ddc3cced544",
+  "mutation_evidence/mutant_023/pytest.xml": "5e772aa6e3cfe8f7c8eae2c858b49c9db67b6ee9b8722277dc070b4fc1736bb1",
+  "mutation_evidence/mutant_023/pytest.log": "41f0dc782744143f5da025caa294cc7e97cfdf34e6b0d84ca8eba757d79eaa7a",
+  "mutation_evidence/mutant_023/cpp-build.log": "a9cec54f895569d1826c82a2fc42e6ea8af701a9d23d044f35d29ce18e0050c9",
+  "mutation_evidence/mutant_024/pytest.xml": "7f0b107b7ea0a2ad52eeee9ae51b3c9c34f85709e543dcf365ace1caa72fd3ff",
+  "mutation_evidence/mutant_024/pytest.log": "d17265129b608cbcdd2c00e0b2c3ee426fa56b040422ef5b547874971e8713ca",
+  "mutation_evidence/mutant_024/cpp-build.log": "ee24094f4667a717f8424511d346188d1d8ac5fdf43fce70e33b2f14825bd8e8",
+  "mutation_evidence/mutant_025/pytest.xml": "20a0689e29a752d0ae5f0e77089e6d9facb36f26f0a2d6fd6ffed63e92b498fe",
+  "mutation_evidence/mutant_025/pytest.log": "2328c97bfcb206ffc15880ac13f18beaa87c5d5744d5ab861675f56cb56ce5cb",
+  "mutation_evidence/mutant_025/cpp-build.log": "4ebe26daa4bd3abfcbba1fd366755526f234c7b21c8af6b3bab1d6a362ac1938",
+  "mutation_evidence/mutant_026/pytest.xml": "584b2a333c8e6b702c30bdc879588e5dce905e5d06bcb9b759e4a201ffe022e7",
+  "mutation_evidence/mutant_026/pytest.log": "736d874d827b8933547356d1e528d2ab0e5e2b2ca450e2598c8f798b0bf0b928",
+  "mutation_evidence/mutant_026/cpp-build.log": "f666f4f41f23e6be46f032bbd615fddc1ec5d73a89b449834c87838a9d6ed61e",
+  "mutation_evidence/mutant_027/pytest.xml": "1e3f4d26ac14bcbfff4a41af1beec64c8036b99bd8f552dde89139e9777581d4",
+  "mutation_evidence/mutant_027/pytest.log": "61b69dd226c55df8684db2508032a98e1779042141bf942cad37935e53d36c5b",
+  "mutation_evidence/mutant_027/cpp-build.log": "c3a6804c6f821559102ea53e5402b138e2bd5452404d7fa2849d90dcdd75b738",
+  "mutation_evidence/mutant_028/pytest.xml": "4214d12c7a08f2978677821658382fd76750d69fb03c54bc4447995085a9c120",
+  "mutation_evidence/mutant_028/pytest.log": "3be23d4cdc8bf572c8e0735ac19e189b01c717afcf1b8d38cfd2c3042e99ec8f",
+  "mutation_evidence/mutant_028/cpp-build.log": "51ec00f460d57df468aa02b93dac504acc4da61e19de31ea7569a81002c8c335"
+ },
+ "source_hash_method": "SHA-256 of raw checkout bytes, including line endings, before the full gate; checked unchanged at publication."
 }

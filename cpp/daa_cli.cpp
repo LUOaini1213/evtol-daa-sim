@@ -1,14 +1,13 @@
-// daa_cli.cpp -- tiny command-line front end to daa_core.hpp for cross-checking.
-//
-//   daa_cli cpa                      stdin: sx sy sz vx vy vz          -> tcpa hmd vmd
-//   daa_cli wcv                      stdin: sx sy sz vx vy vz D Z TTHR T -> hit lo hi
-//   daa_cli alert cpa|wcv D TTHR Z1 T1 Z2 T2 Z3 T3
-//                                    stdin: sx sy sz vx vy vz          -> level
-// Numbers are printed with %.17g so doubles round-trip exactly.
+// Cross-language core check: one complete numeric record per stdin line.
+//   cpa: sx sy sz vx vy vz
+//   wcv: sx sy sz vx vy vz D Z TTHR T
+//   alert cpa|wcv D TTHR Z1 T1 Z2 T2 Z3 T3: sx sy sz vx vy vz
+// Invalid input fails with exit 2; valid outputs use 17-digit doubles.
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include "daa_core.hpp"
 
@@ -19,8 +18,11 @@ int usage() {
     return 2;
 }
 
-bool read_vec(daa::Vec3& s, daa::Vec3& v) {
-    return std::scanf("%lf %lf %lf %lf %lf %lf", &s[0], &s[1], &s[2], &v[0], &v[1], &v[2]) == 6;
+double number(const std::string& text) {
+    std::size_t used = 0;
+    const double value = std::stod(text, &used);
+    if (used != text.size()) throw std::invalid_argument("invalid numeric token: " + text);
+    return value;  // Core validation rejects NaN/Inf and negative thresholds.
 }
 
 }  // namespace
@@ -28,36 +30,49 @@ bool read_vec(daa::Vec3& s, daa::Vec3& v) {
 int main(int argc, char** argv) {
     if (argc < 2) return usage();
     const std::string mode = argv[1];
-    daa::Vec3 s{}, v{};
-    if (mode == "cpa") {
-        while (read_vec(s, v)) {
-            const daa::Cpa c = daa::cpa(s, v);
-            std::printf("%.17g %.17g %.17g\n", c.tcpa, c.hmd, c.vmd);
-        }
-        return 0;
-    }
-    if (mode == "wcv") {
-        double D, Z, TTHR, T;
-        while (read_vec(s, v) && std::scanf("%lf %lf %lf %lf", &D, &Z, &TTHR, &T) == 4) {
-            const auto r = daa::wcv_interval(s, v, D, Z, TTHR, T);
-            if (r) std::printf("1 %.17g %.17g\n", r->first, r->second);
-            else std::printf("0 nan nan\n");
-        }
-        return 0;
-    }
-    if (mode == "alert") {
-        if (argc != 11) return usage();
-        const std::string strat = argv[2];
-        if (strat != "cpa" && strat != "wcv") return usage();
-        const double D = std::atof(argv[3]);
-        const double TTHR = std::atof(argv[4]);
+    if (mode != "cpa" && mode != "wcv" && mode != "alert") return usage();
+    if ((mode == "alert" && argc != 11) || (mode != "alert" && argc != 2)) return usage();
+    try {
+        daa::Strategy strategy = daa::Strategy::Wcv;
         std::array<daa::Tier, 3> tiers{};
-        for (int i = 0; i < 3; ++i) {
-            tiers[i] = daa::Tier{D, std::atof(argv[5 + 2 * i]), TTHR, std::atof(argv[6 + 2 * i])};
+        if (mode == "alert") {
+            const std::string strat = argv[2];
+            if (strat != "cpa" && strat != "wcv") return usage();
+            strategy = strat == "cpa" ? daa::Strategy::Cpa : daa::Strategy::Wcv;
+            const double D = number(argv[3]);
+            const double tau = number(argv[4]);
+            for (int i = 0; i < 3; ++i) {
+                tiers[i] = daa::Tier{D, number(argv[5 + 2 * i]), tau, number(argv[6 + 2 * i])};
+                daa::nonnegative(tiers[i].D); daa::nonnegative(tiers[i].Z);
+                daa::nonnegative(tiers[i].TTHR); daa::nonnegative(tiers[i].T);
+            }
         }
-        const auto st = strat == "cpa" ? daa::Strategy::Cpa : daa::Strategy::Wcv;
-        while (read_vec(s, v)) std::printf("%d\n", daa::alert_level(st, s, v, tiers));
-        return 0;
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            std::istringstream input(line);
+            std::vector<double> values;
+            std::string token;
+            while (input >> token) values.push_back(number(token));
+            if (values.empty()) continue;
+            const std::size_t expected = mode == "wcv" ? 10 : 6;
+            if (values.size() != expected) throw std::invalid_argument("wrong number of fields in input record");
+            const daa::Vec3 s{values[0], values[1], values[2]};
+            const daa::Vec3 v{values[3], values[4], values[5]};
+            if (mode == "cpa") {
+                const daa::Cpa c = daa::cpa(s, v);
+                std::printf("%.17g %.17g %.17g\n", c.tcpa, c.hmd, c.vmd);
+            } else if (mode == "wcv") {
+                const auto r = daa::wcv_interval(s, v, values[6], values[7], values[8], values[9]);
+                if (r) std::printf("1 %.17g %.17g\n", r->first, r->second);
+                else std::printf("0 nan nan\n");
+            } else {
+                std::printf("%d\n", daa::alert_level(strategy, s, v, tiers));
+            }
+        }
+        if (!std::cin.eof()) throw std::runtime_error("failed to read input stream");
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "invalid input: %s\n", error.what());
+        return 2;
     }
-    return usage();
+    return 0;
 }

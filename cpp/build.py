@@ -28,27 +28,39 @@ def _msvc(out):
         raise FileNotFoundError("no C++ compiler found (g++, clang++ or MSVC)")
     inst = subprocess.run([str(vswhere), "-latest", "-products", "*", "-requires",
                            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                           "-property", "installationPath"],
-                          capture_output=True, text=True, check=True).stdout.strip()
+                           "-property", "installationPath", "-utf8"],
+                          capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
     vcvars = Path(inst) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
     if not vcvars.exists():
         raise FileNotFoundError("MSVC found but vcvars64.bat missing")
-    obj_dir = out.parent
-    bat = obj_dir / "_build_msvc.bat"
-    lines = [
-        "@echo off",
-        f'call "{vcvars}" >nul',
-        f'cl /nologo /std:c++17 /O2 /EHsc /W4 /WX /fp:precise /D_CRT_SECURE_NO_WARNINGS /Fo"{obj_dir}\\\\" /Fe"{out}" "{SRC}"',
-    ]
-    bat.write_text("\r\n".join(lines) + "\r\n", encoding="ascii")
-    r = subprocess.run(["cmd", "/d", "/c", str(bat)], capture_output=True, text=True)
-    bat.unlink()
-    if r.returncode != 0:
-        raise RuntimeError("MSVC build failed:\n" + r.stdout + r.stderr)
+    # Bootstrap the toolchain only in cmd. /u makes SET's redirected output
+    # UTF-16LE; source/output paths never enter shell syntax or an ASCII .bat.
+    bootstrap_env = os.environ.copy()
+    bootstrap_env["DAA_VCVARS"] = str(vcvars)
+    bootstrap = subprocess.run(
+        'cmd /d /u /v:off /c ""%DAA_VCVARS%" >nul && set"',
+        env=bootstrap_env, capture_output=True, check=True,
+    )
+    compiler_env = {}
+    for line in bootstrap.stdout.decode("utf-16-le").splitlines():
+        key, separator, value = line.partition("=")
+        if key and separator:
+            compiler_env[key.upper()] = value
+    compiler = shutil.which("cl.exe", path=compiler_env.get("PATH", ""))
+    if compiler is None:
+        raise RuntimeError("MSVC environment did not provide cl.exe")
+    out = out.resolve()
+    cmd = [compiler, "/nologo", "/std:c++17", "/O2", "/EHsc", "/W4", "/WX",
+           "/fp:precise", "/D_CRT_SECURE_NO_WARNINGS", "/Fo" + str(out.with_suffix(".obj")),
+           "/Fe" + str(out), str(SRC)]
+    result = subprocess.run(cmd, env=compiler_env, capture_output=True)
+    if result.returncode != 0:
+        raise RuntimeError("MSVC build failed:\n" +
+                           (result.stdout + result.stderr).decode(errors="replace"))
 
 
 def build(out_dir) -> Path:
-    out_dir = Path(out_dir)
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     exe = out_dir / ("daa_cli.exe" if os.name == "nt" else "daa_cli")
     cxx = os.environ.get("CXX") or shutil.which("g++") or shutil.which("clang++")

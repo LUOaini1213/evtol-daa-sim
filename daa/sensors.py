@@ -79,8 +79,9 @@ def make_track(enc, cfg, condition, seed):
     pos = np.empty_like(meas_p)
     vel = np.empty_like(meas_p)
     pos[:, 0] = meas_p[:, 0]
-    v_init = np.where(coop[:, None], meas_v[:, 0], (meas_p[:, 1] - meas_p[:, 0]) / dt)
-    vel[:, 0] = v_init
+    # Noncooperative velocity is unknown at the first report: use a zero prior.
+    # The two-position estimate becomes available only at the second report.
+    vel[:, 0] = np.where(coop[:, None], meas_v[:, 0], 0.0)
     c = coop[:, None]
     for j in range(1, K1):
         pp = pos[:, j - 1] + vel[:, j - 1] * dt
@@ -89,4 +90,7 @@ def make_track(enc, cfg, condition, seed):
         pos[:, j] = np.where(got, pp + alpha * r, pp)
         v_ab = vel[:, j - 1] + (beta / dt) * r
         vel[:, j] = np.where(got, np.where(c, meas_v[:, j], v_ab), vel[:, j - 1])
+        if j == 1:  # both initiation reports are received by construction
+            pos[:, j] = np.where(c, pos[:, j], meas_p[:, j])
+            vel[:, j] = np.where(c, vel[:, j], (meas_p[:, j] - meas_p[:, 0]) / dt)
     return Track(pos, vel, rec, condition)

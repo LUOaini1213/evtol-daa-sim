@@ -6,7 +6,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     env:
       DAA_REQUIRE_CPP: "1"
     steps:
@@ -16,11 +20,8 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Build C++ core with g++
-        run: |
-          g++ --version
-          python cpp/build.py build
-          echo "1000 0 0 -50 0 0" | ./build/daa_cli cpa
+      - name: Build C++ core
+        run: python cpp/build.py build
       - name: Tests (includes Python/C++ agreement)
         run: python -m pytest -q
       - name: README numbers match results files

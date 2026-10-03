@@ -26,6 +26,52 @@ EPS = 1e-12  # m^2/s^2: relative horizontal speed^2 below this is treated as zer
 INF = math.inf
 
 
+def _has_bool(value):
+    if isinstance(value, (bool, np.bool_)):
+        return True
+    return isinstance(value, (list, tuple)) and any(_has_bool(x) for x in value)
+
+
+def _real_array(value, name):
+    """Public inputs must be finite real numbers, not coercible text or bools."""
+    try:
+        raw = np.asarray(value)
+        if _has_bool(value) or raw.dtype.kind not in "iuf":
+            raise ValueError(f"{name} must contain real numbers")
+        result = raw.astype(float, copy=False)
+        if not np.all(np.isfinite(result)):
+            raise ValueError(f"{name} must be finite")
+        return result
+    except (TypeError, OverflowError) as exc:
+        raise ValueError(f"{name} must contain finite real numbers") from exc
+
+
+def _state_array(value, name="state"):
+    result = _real_array(value, name)
+    if result.ndim < 1 or result.shape[-1] != 3:
+        raise ValueError(f"{name} must have shape [..., 3]")
+    return result
+
+
+def _scalar_state(value):
+    result = _state_array(value)
+    if result.shape != (3,):
+        raise ValueError("scalar state must have exactly three components")
+    return tuple(float(x) for x in result)
+
+
+def _parameter(value, name, scalar=False):
+    result = _real_array(value, name)
+    if np.any(result < 0) or (scalar and result.ndim != 0):
+        raise ValueError(f"{name} must be finite and nonnegative" + (" scalar" if scalar else ""))
+    return float(result) if scalar else result
+
+
+def _finite_calculation(*values):
+    if not all(np.all(np.isfinite(value)) for value in values):
+        raise ValueError("geometry exceeds the finite arithmetic range")
+
+
 # ---------------------------------------------------------------- scalar ----
 def cpa_scalar(s, v):
     """Return (tcpa, hmd, vmd) for the horizontal CPA.
@@ -33,8 +79,8 @@ def cpa_scalar(s, v):
     tcpa is the unclamped horizontal time of closest approach (negative when
     diverging). hmd and vmd are evaluated at max(tcpa, 0).
     """
-    sx, sy, sz = s
-    vx, vy, vz = v
+    sx, sy, sz = _scalar_state(s)
+    vx, vy, vz = _scalar_state(v)
     a = vx * vx + vy * vy
     sv = sx * vx + sy * vy
     tcpa = -sv / a if a > EPS else 0.0
@@ -43,41 +89,56 @@ def cpa_scalar(s, v):
     hy = sy + t * vy
     hmd = math.sqrt(hx * hx + hy * hy)
     vmd = sz + t * vz
+    _finite_calculation(a, sv, tcpa, hmd, vmd)
     return tcpa, hmd, vmd
 
 
 def vertical_interval_scalar(sz, vz, Z):
     """Times t with |sz + t*vz| <= Z, as (lo, hi) or None."""
+    sz, vz, _ = _scalar_state((sz, vz, 0.0))
+    Z = _parameter(Z, "Z", scalar=True)
     if abs(vz) <= 1e-9:
         return (-INF, INF) if abs(sz) <= Z else None
     t1 = (-Z - sz) / vz
     t2 = (Z - sz) / vz
+    _finite_calculation(t1, t2)
     return (t1, t2) if t1 <= t2 else (t2, t1)
 
 
 def horizontal_interval_scalar(sx, sy, vx, vy, D, TTHR):
     """Times t with horizontal WCV (tau_mod form), as (lo, hi) or None."""
+    sx, sy, _ = _scalar_state((sx, sy, 0.0))
+    vx, vy, _ = _scalar_state((vx, vy, 0.0))
+    D = _parameter(D, "D", scalar=True)
+    TTHR = _parameter(TTHR, "TTHR", scalar=True)
     a = vx * vx + vy * vy
     ss = sx * sx + sy * sy
     D2 = D * D
+    _finite_calculation(a, ss, D2)
     if a <= EPS:
         return (-INF, INF) if ss <= D2 else None
     sv = sx * vx + sy * vy
-    disc_c = sv * sv - a * (ss - D2)
-    if disc_c < 0.0:  # dcpa > DTHR: never horizontally in violation
+    # Cross-track distance avoids subtracting the large along-track terms in
+    # sv**2 - a*(ss-D**2), which can make an exact tangent look disjoint.
+    speed = math.sqrt(a)
+    miss = abs(sx * (vy / speed) - sy * (vx / speed))
+    _finite_calculation(sv, miss)
+    if miss > D:
         return None
-    t_out = (-sv + math.sqrt(disc_c)) / a
-    b = 2.0 * sv + TTHR * a
-    c = ss + TTHR * sv - D2
-    disc_t = b * b - 4.0 * a * c
-    if disc_t < 0.0:  # impossible when disc_c >= 0; round-off guard
-        disc_t = 0.0
-    t_in = (-b - math.sqrt(disc_t)) / (2.0 * a)
+    half_width2 = (D - miss) * (D + miss) / a
+    tcpa = -sv / a
+    half_tau = TTHR / 2.0
+    t_out = tcpa + math.sqrt(half_width2)
+    t_in = tcpa - half_tau - math.sqrt(half_tau * half_tau + half_width2)
+    _finite_calculation(t_in, t_out)
     return (t_in, t_out)
 
 
 def wcv_interval_scalar(s, v, D, Z, TTHR, T):
     """First/last time in [0, T] of predicted WCV, or None if no violation."""
+    s, v = _scalar_state(s), _scalar_state(v)
+    D, Z, TTHR, T = (_parameter(x, name, scalar=True)
+                     for x, name in zip((D, Z, TTHR, T), ("D", "Z", "TTHR", "T")))
     h = horizontal_interval_scalar(s[0], s[1], v[0], v[1], D, TTHR)
     if h is None:
         return None
@@ -94,6 +155,9 @@ def wcv_interval_scalar(s, v, D, Z, TTHR, T):
 def cpa_condition_scalar(s, v, Dh, Dv, T):
     """CPA-threshold test: inside the cylinder now, or 0 < tcpa <= T with
     hmd <= Dh and |vmd| <= Dv."""
+    s, v = _scalar_state(s), _scalar_state(v)
+    Dh, Dv, T = (_parameter(x, name, scalar=True)
+                 for x, name in zip((Dh, Dv, T), ("Dh", "Dv", "T")))
     tcpa, hmd, vmd = cpa_scalar(s, v)
     inside = (s[0] * s[0] + s[1] * s[1] <= Dh * Dh) and abs(s[2]) <= Dv
     return inside or (0.0 < tcpa <= T and hmd <= Dh and abs(vmd) <= Dv)
@@ -101,7 +165,7 @@ def cpa_condition_scalar(s, v, Dh, Dv, T):
 
 # ------------------------------------------------------------ vectorised ----
 def _split(s):
-    s = np.asarray(s, dtype=float)
+    s = _state_array(s)
     return s[..., 0], s[..., 1], s[..., 2]
 
 
@@ -119,6 +183,7 @@ def cpa(s, v):
     hy = sy + t * vy
     hmd = np.sqrt(hx * hx + hy * hy)
     vmd = sz + t * vz
+    _finite_calculation(a, sv, tcpa, hmd, vmd)
     return tcpa, hmd, vmd
 
 
@@ -130,10 +195,8 @@ def wcv_interval(s, v, D, Z, TTHR, T):
     """
     sx, sy, sz = _split(s)
     vx, vy, vz = _split(v)
-    D = np.asarray(D, dtype=float)
-    Z = np.asarray(Z, dtype=float)
-    TTHR = np.asarray(TTHR, dtype=float)
-    T = np.asarray(T, dtype=float)
+    D, Z, TTHR, T = (_parameter(x, name) for x, name in
+                     zip((D, Z, TTHR, T), ("D", "Z", "TTHR", "T")))
 
     # horizontal
     a = vx * vx + vy * vy
@@ -142,15 +205,16 @@ def wcv_interval(s, v, D, Z, TTHR, T):
     still = a <= EPS
     a_safe = np.where(still, 1.0, a)
     sv = sx * vx + sy * vy
-    disc_c = sv * sv - a * (ss - D2)
-    with np.errstate(invalid="ignore"):
-        t_out = (-sv + np.sqrt(np.where(disc_c < 0.0, 0.0, disc_c))) / a_safe
-        b = 2.0 * sv + TTHR * a
-        c = ss + TTHR * sv - D2
-        disc_t = b * b - 4.0 * a * c
-        disc_t = np.where(disc_t < 0.0, 0.0, disc_t)
-        t_in = (-b - np.sqrt(disc_t)) / (2.0 * a_safe)
-    h_ok = np.where(still, ss <= D2, disc_c >= 0.0)
+    speed = np.sqrt(a_safe)
+    miss = np.abs(sx * (vy / speed) - sy * (vx / speed))
+    _finite_calculation(a, ss, D2, sv, miss)
+    half_width2 = np.maximum(D - miss, 0.0) * (D + miss) / a_safe
+    tcpa = -sv / a_safe
+    half_tau = TTHR / 2.0
+    t_out = tcpa + np.sqrt(half_width2)
+    t_in = tcpa - half_tau - np.sqrt(half_tau * half_tau + half_width2)
+    _finite_calculation(t_in, t_out)
+    h_ok = np.where(still, ss <= D2, miss <= D)
     h_lo = np.where(still, -np.inf, t_in)
     h_hi = np.where(still, np.inf, t_out)
 
@@ -159,6 +223,7 @@ def wcv_interval(s, v, D, Z, TTHR, T):
     vz_safe = np.where(flat, 1.0, vz)
     t1 = (-Z - sz) / vz_safe
     t2 = (Z - sz) / vz_safe
+    _finite_calculation(t1, t2)
     v_ok = np.where(flat, np.abs(sz) <= Z, True)
     v_lo = np.where(flat, -np.inf, np.minimum(t1, t2))
     v_hi = np.where(flat, np.inf, np.maximum(t1, t2))
@@ -173,6 +238,7 @@ def wcv_interval(s, v, D, Z, TTHR, T):
 
 def cpa_condition(s, v, Dh, Dv, T):
     """Vectorised cpa_condition_scalar."""
+    Dh, Dv, T = (_parameter(x, name) for x, name in zip((Dh, Dv, T), ("Dh", "Dv", "T")))
     sx, sy, sz = _split(s)
     tcpa, hmd, vmd = cpa(s, v)
     inside = (sx * sx + sy * sy <= Dh * Dh) & (np.abs(sz) <= Dv)
@@ -187,6 +253,13 @@ def segment_violation(rel, dt, D, Z):
     rel: [N, K, 3] relative positions at t_k = k*dt.
     Returns (violated [N], onset time [N] (NaN if never)).
     """
+    rel = _state_array(rel, "trajectory")
+    dt = _parameter(dt, "dt", scalar=True)
+    if rel.ndim != 3 or rel.shape[1] < 1 or dt <= 0:
+        raise ValueError("trajectory must have shape [N, K>=1, 3] and dt must be positive")
+    if rel.shape[1] == 1:
+        hit, lo, _ = wcv_interval(rel[:, 0, :], np.zeros_like(rel[:, 0, :]), D, Z, 0.0, 0.0)
+        return hit, lo
     s = rel[:, :-1, :]
     v = (rel[:, 1:, :] - rel[:, :-1, :]) / dt
     hit, lo, _ = wcv_interval(s, v, D, Z, 0.0, dt)

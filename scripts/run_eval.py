@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import platform
 import sys
@@ -27,6 +28,18 @@ from daa import sensors as S  # noqa: E402
 from daa import sim  # noqa: E402
 
 CONDITIONS = ("ideal", "nominal", "degraded")
+
+
+def runtime_source_sha256():
+    """Deterministic relative-path map of the exact source/config bytes used by a run."""
+    paths = [*(ROOT / "daa").glob("*.py"), ROOT / "config/default.json", ROOT / "scripts/run_eval.py"]
+    return {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(paths, key=lambda p: p.relative_to(ROOT).as_posix())}
+
+
+def verify_runtime_sources(expected):
+    if runtime_source_sha256() != expected:
+        raise RuntimeError("runtime sources changed during evaluation; no results published")
 
 
 def _f(x):
@@ -64,8 +77,12 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     t_start = time.time()
+    source_hashes = runtime_source_sha256()
     cfg = load_config()
-    n = args.n or cfg["encounter"]["n_encounters"]
+    try:
+        n = E.validate_encounter_count(cfg["encounter"]["n_encounters"] if args.n is None else args.n)
+    except ValueError as exc:
+        ap.error(str(exc))
     out = Path(args.out) if args.out else (ROOT / "results" if args.n is None else ROOT / "build" / "quick")
     docs = Path(args.docs) if args.docs else (ROOT / "docs" if args.out is None and args.n is None else out)
     out.mkdir(parents=True, exist_ok=True)
@@ -80,6 +97,7 @@ def main(argv=None):
     haz, onset, nmac0 = E.truth_outcome(enc.own_pos, enc.int_pos, dt, cfg)
     tracks = {c: S.make_track(enc, cfg, c, seed + 1 + i) for i, c in enumerate(CONDITIONS)}
     res = dict(meta=dict(n=n, seed=seed, dt=dt, horizon=float(enc.t[-1]), generation=enc.stats,
+                         runtime_source_sha256=source_hashes,
                          hazardous=M.rate(haz), nmac_unmitigated=M.rate(nmac0),
                          geometry_counts={gname: int((enc.geometry == i).sum()) for i, gname in enumerate(E.GEOMETRIES)},
                          intruder_counts={x: int((enc.intruder == i).sum()) for i, x in enumerate(E.INTRUDERS)},
@@ -274,6 +292,7 @@ def main(argv=None):
     res["closed_loop_failures"] = fail_summary
 
     # ------------------------------------------------------------- outputs
+    verify_runtime_sources(source_hashes)
     res["meta"]["runtime_s"] = round(time.time() - t_start, 1)
     with open(out / "summary.json", "w", encoding="utf-8") as f:
         json.dump(res, f, indent=1, default=lambda o: o.item() if hasattr(o, "item") else str(o))

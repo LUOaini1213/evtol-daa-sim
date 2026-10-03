@@ -104,15 +104,20 @@ def candidate_set(kind, cfg):
     return np.radians(d), dz, slow, cost
 
 
-def _select(mmin, cost):
+def _select(mmin, cost, *, maximize=False, keep_current=False):
     """Cheapest candidate with predicted min separation ratio >= 1; if none,
-    the candidate with the largest ratio (cheapest among ties)."""
+    the candidate with the largest ratio (cheapest among ties). Emergency selection
+    maximizes the ratio even if a cheaper clear candidate exists. A clear current
+    command is retained during rechecks, as specified by the replanning policy."""
     free = mmin >= 1.0
     any_free = free.any(axis=1)
     pick_free = np.where(free, cost[None, :], np.inf).argmin(axis=1)
     best = mmin.max(axis=1, keepdims=True)
     pick_best = np.where(mmin >= best - 1e-9, cost[None, :], np.inf).argmin(axis=1)
-    return np.where(any_free, pick_free, pick_best), any_free
+    pick = pick_best if maximize else np.where(any_free, pick_free, pick_best)
+    if keep_current:
+        pick = np.where(free[:, 0], 0, pick)
+    return pick, any_free
 
 
 def plan(kind, cfg, psi, V, vz, znom, z_true, pos, cmd, p_int, v_int, delay_steps, include_current=False):
@@ -164,8 +169,9 @@ def plan(kind, cfg, psi, V, vz, znom, z_true, pos, cmd, p_int, v_int, delay_step
             s = p_int[:, None, :] + v_int[:, None, :] * ((i + 1) * dt) - P
             m = np.maximum(np.hypot(s[..., 0], s[..., 1]) / Dp, np.abs(s[..., 2]) / Zp)
             mmin = np.minimum(mmin, m)
-    pick, any_free = _select(np.where(feasible, mmin, -np.inf), cost)
-    pick_unconstrained, _ = _select(mmin, cost)
+    objective = dict(maximize=kind == "emergency", keep_current=include_current)
+    pick, any_free = _select(np.where(feasible, mmin, -np.inf), cost, **objective)
+    pick_unconstrained, _ = _select(mmin, cost, **objective)
     # the altitude band changed the decision (a better candidate was out of the band)
     limited = pick != pick_unconstrained
     mmin = np.where(feasible, mmin, -np.inf)
