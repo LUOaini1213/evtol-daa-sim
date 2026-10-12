@@ -44,7 +44,7 @@ MUTANTS = [
     ("daa/sim.py", "    om = turn_rate(V, perf[\"bank_max_deg\"]) * dt", "    om = 2.0 * turn_rate(V, perf[\"bank_max_deg\"]) * dt", "turn rate limit doubled"),
     ("daa/sim.py", "    vz_n = vz + np.clip(vz_cmd - vz, -perf[\"a_z\"] * dt, perf[\"a_z\"] * dt)", "    vz_n = vz_cmd", "vertical acceleration unbounded"),
     ("daa/sim.py", "        cost = np.abs(d) + 0.1 * (d > 0)       # prefer right turn", "        cost = np.abs(d) + 0.1 * (d < 0)       # prefer right turn", "left-turn preference"),
-    ("daa/sim.py", "    feasible = (tgt_z >= sim[\"floor_m\"][\"value\"])", "    feasible = (tgt_z >= 0.0)", "altitude floor ignored"),
+    ("daa/sim.py", "tgt_z >= sim[\"floor_m\"][\"value\"] - ALTITUDE_EPS", "tgt_z >= 0.0", "altitude target floor ignored"),
     ("daa/sim.py", "                pend_step[idx] = k + d", "                pend_step[idx] = k", "response delay ignored"),
     ("daa/sensors.py", "    beta = (lam * lam + 4.0 * lam - lam * r) / 4.0", "    beta = (lam * lam + 4.0 * lam - lam * r) / 2.0", "alpha-beta gain formula"),
     ("daa/sensors.py", "        state = np.where(state, u[:, j] >= p_bg, u[:, j] < p_gb)", "        state = np.where(state, u[:, j] < p_bg, u[:, j] < p_gb)", "dropout recovery inverted"),
@@ -58,7 +58,7 @@ MUTANTS = [
     ("daa/metrics.py", "    if x.size == 0 or x.size != y.size:", "    if x.size == 0:", "paired metrics accept unequal input lengths"),
 ]
 
-IGNORE = shutil.ignore_patterns(".git", "results", "build", "docs", "__pycache__", ".pytest_cache")
+IGNORE = shutil.ignore_patterns(".git", "results", "build", "docs", "__pycache__", ".pytest_cache", ".venv", "venv")
 
 
 def _run_command(command, *, cwd, env, timeout):

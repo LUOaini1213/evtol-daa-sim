@@ -94,6 +94,19 @@ def test_negative_only_rejected_before_any_suite(runner, tmp_path, monkeypatch):
     assert exc.value.code == 2
 
 
+def test_private_virtual_environments_are_not_copied_but_tested_source_is(runner, tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    for name in (".venv", "venv", "daa", "tests", "cpp", "config"):
+        (source / name).mkdir()
+        (source / name / "sentinel").write_text(name)
+    copied = tmp_path / "copied"
+    shutil.copytree(source, copied, ignore=runner.IGNORE)
+    assert {p.name for p in copied.iterdir()} == {"daa", "tests", "cpp", "config"}
+    for name in ("daa", "tests", "cpp", "config"):
+        assert (copied / name / "sentinel").read_text() == name
+
+
 @pytest.mark.parametrize("replacement,expected,exitcode", [
     ("VALUE = 2", "caught", 0),
     ("VALUE = 1 + 0", "survived", 1),

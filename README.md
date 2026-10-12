@@ -5,6 +5,12 @@ alerting logics and avoidance manoeuvres for an eVTOL in low-altitude airspace, 
 synthetic Monte-Carlo encounters. It is not certified, not derived from any real system,
 and none of the encounter data comes from real traffic.
 
+The published tables, figures and mutation gate are preserved evidence of
+[source `0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a).
+The current controller additionally constrains its commanded altitude trajectory;
+no new 6,000-encounter evaluation is claimed for that version. See
+[the correction and deterministic verification scope](docs/ALTITUDE_CONSTRAINTS.md).
+
 What is in the repository:
 
 - `daa/` - Python simulator: encounter generator, surveillance and tracker model, three
@@ -158,7 +164,9 @@ Every parameter is in `config/default.json` with its source string.
 ## Results
 
 <!-- BEGIN GENERATED RESULTS (scripts/make_readme.py) -->
-All numbers below are produced by `scripts/run_eval.py` (seed 20260928, 6000 encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.
+These are preserved historical evaluations of [source commit `0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a). They do not evaluate the current altitude-constrained controller. No new 6,000-encounter evaluation or full mutation gate is claimed for that controller; see [the local regression scope](docs/ALTITUDE_CONSTRAINTS.md).
+
+Historical numbers below were produced by that version of `scripts/run_eval.py` (seed 20260928, 6000 encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.
 
 Encounter set: 6000 accepted of 12064 sampled (rejected: 175 slow closure, 230 loss too early, 2555 intruder altitude out of range). Geometry: head-on 1817, crossing 1806, overtaking 1503, vertical 874. Intruder: eVTOL 1962, drone 2082, GA 1956; 1235 intruders make an unannounced turn. Without avoidance, 1270/6000 = 21.2% [20.2, 22.2] of encounters lose well clear and 61/6000 = 1.0% [0.8, 1.3] reach NMAC. Surveillance report loss: nominal 3.8%, degraded 19.6%. Simulation and analysis time, excluding exports/plots: 140 s (Python 3.11.5, numpy 1.26.4).
 
@@ -317,7 +325,7 @@ Residual losses of well clear with avoidance, labelled (labels overlap; `results
 | degraded | WCV + tau_mod 20 s + vertical | 153 | 146 | 113 | 42 | 16 | 139 | 3 | 0 |
 | degraded | WCV + tau_mod 20 s + combined | 157 | 144 | 114 | 47 | 13 | 140 | 10 | 2 |
 
-### 8. Test-suite mutation check
+### 8. Historical test-suite mutation check
 
 `scripts/mutation_check.py` planted 29 deliberate bugs, one at a time, in fresh copies of the repository; tests detected 29 of 29. The unmutated copy passed first (236 passed in 59.44s).
 Every case must compile the C++ core before pytest. Collection, setup, compiler, timeout and skipped-test outcomes invalidate the run rather than count as detections. The report retains per-case failure evidence and full logs/JUnit files.
@@ -455,11 +463,17 @@ retain their evidence in a separate `*_artifacts/run_*` directory.
 The October 2026 reliability review fixes tangency cancellation, future-report leakage
 at tracker initialisation, emergency candidate selection, full-horizon altitude screening,
 paired-input validation and Unicode MSVC builds. The results above were rerun with all
-6000 encounters after those fixes, using the pinned requirements. Historical results remain
+6000 encounters after those fixes, using the pinned requirements, at source commit
+`0e8566360e02e7d2c5afb45018578ea80c05f13a`. Those results are now archived and do not
+evaluate the current altitude-constrained controller. Earlier historical results remain
 in commit `3162ee8874f53e9970e1bfe4b4a8fdab32b2a3b7`. Changed sampling eligibility changes
 the accepted encounters and later random draws; old/new encounter indices must not be
 paired, even though the seed is the same. The historical run also used NumPy 1.24.3,
 whereas this run uses 1.26.4, so aggregate changes are not isolated algorithm gains.
+
+`python scripts/check_archived_results.py` checks these frozen bytes and their original
+evaluation/mutation source hashes from that fixed commit. CI treats this historical audit
+separately from current-controller tests; a pass does not certify new benchmark results.
 
 `summary.json` records the runtime source/config SHA-256 values (raw checkout bytes,
 including line endings). The evaluator rejects a source change during the calculation

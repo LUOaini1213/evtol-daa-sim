@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "created_at": "2026-10-12T04:46:10.377697+00:00",
+  "scope": "Deterministic commanded-altitude controls and historical evidence audit; no new Monte-Carlo or current product mutation gate",
+  "base_commit": "0e8566360e02e7d2c5afb45018578ea80c05f13a",
+  "source_hash_policy": "SHA256; source text CRLF normalized to LF",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "518df9021b9e146dbc0e574e43e6e86b94f3febbd472ebc9e774c45a37dbef59",
+    "config/default.json": "2fb67ad4fc15b9e7ee7854e5770b58536674f6a434e29356689987b4b7176d3e",
+    "cpp/build.py": "0a60da26322446436748fb679cf3244e305349104d953485026e7469b0fb52f5",
+    "cpp/daa_cli.cpp": "8c85b89bb7694981081c2fde1277ecd988a232d1b297d3613b495781ba66af07",
+    "cpp/daa_core.hpp": "e228349ef97fff34db9c1dcd356bf699c5dda5a95f1f8f1948302228775f6f05",
+    "daa/__init__.py": "a1f405393f104d9604fe937f56c5d2be952c8c0afebe14a507dc9b7768b66f26",
+    "daa/alerting.py": "e5a3bd39dc63ed776da0891bed4f7468fb39abec6e102e1487182fceefa070dc",
+    "daa/encounters.py": "29d6df24db248aef27075d9532a45b46bedffd5da9c159e76f4a178ab31b5ba4",
+    "daa/geometry.py": "8498d098e1400aa9caeb984dc94bc6a9c70ad2c02200d4b486743a45c2ba41e0",
+    "daa/metrics.py": "8c478035cbb9a0b2ca745aec1b18453b7d0a6a27c70a88bad18a9fb6c1e04a60",
+    "daa/sensors.py": "0ee39801953de4f3650654c0cabf372a0a275127e6f19a6eec4b481e2783b292",
+    "daa/sim.py": "e4d84aa6bc08b3c75036bb038ac60010dcd9f5906a31b8c9f320db6acd2cfd7e",
+    "pytest.ini": "c809c969ec7e11b9ff37784e9c6fcc0b7c5148d168e18b05aed797e03fbd6ead",
+    "requirements.txt": "9fc853af91c5b65b7f38088b846cf1d49aa80e09d530e5ac080872e8c40f5ee1",
+    "scripts/check_archived_results.py": "27b5da8f32991f76519a9532a9ca296a6b94fc7ba10c052605425bc1ff690da9",
+    "scripts/make_readme.py": "bb58a30bfc49d40b74d84f96e7654218663b84dd128405588afb09b9dc578854",
+    "scripts/mutation_check.py": "336edb5b90afef4532dee30771162da4b1d14358642c24ee34cd94e4c2ef7fca",
+    "scripts/run_eval.py": "af2a3a00c1c486979fbe8a3925049834367b442c6008476ca5e53fed06e4cb63",
+    "tests/conftest.py": "1c1ca1a84aaed8e14807b633fbcdfc2bddaef9ded74c4355978800e0ccb57970",
+    "tests/test_alerting.py": "172415de5f31e2e68c480640950fc8248f08005921a34a01747a8e7a9ad27e1f",
+    "tests/test_altitude_band.py": "49571845e03465bc2d9afb3676d60a0be27cb3862c11f8f7eb9da9d716448581",
+    "tests/test_archived_results.py": "f7c504e8033110148ad0ddc14ddc4279825ebf11e5d3d15f876fc3131e425897",
+    "tests/test_behavior_review.py": "52a26ffeabc64a84b5a28c245752fd1c2df35028a1f84fec579ee4e6df5a0ac3",
+    "tests/test_build.py": "1bd7f4565175eb2c9d11122cb37d242e51f8679add2cd28b92b66416a2b652e5",
+    "tests/test_cpp_agreement.py": "981a4511141844c6c20446511700436e74c90035d13f9eda237506b1defdc9d0",
+    "tests/test_geometry.py": "134aae065b0f0c196012742774b914d32135739f5993918c60dafc574db4bad0",
+    "tests/test_geometry_review.py": "0a4114d566acbbe6a510470f7fddf35b0fa8f0f403c7fa594c56cccc58bcf937",
+    "tests/test_manoeuvres.py": "674cc83e98208474da4345e4a9595eb00af885a332dd06def511439b3c3b5993",
+    "tests/test_metrics_sensors.py": "1ff092d4e387d7df4ddd097a15be52a26b03c3e4be6408c84ab749aba3a3e9c0",
+    "tests/test_mutation_runner.py": "67928f3ef2268cd9fd13e01e7e35c65cc0ac336ff61b8ae070ecea478c8e4d0f"
+  },
+  "historical_audit": {
+    "passed": true,
+    "scope": "historical bytes/original source; no current engine evaluation",
+    "source_commit": "0e8566360e02e7d2c5afb45018578ea80c05f13a",
+    "encounters": 6000,
+    "artifact_count": 8,
+    "evaluation_source_files": 9,
+    "mutation_source_files": 26,
+    "mutation_evidence_members": 90,
+    "current_runtime_matches_archived_evaluation": false,
+    "current_runtime_difference_ignoring_checkout_line_endings": [
+      "daa/sim.py"
+    ]
+  },
+  "historical_readme_table_rows_unchanged": true,
+  "before_actual_public_closed_loop_controls": {
+    "tests": 8,
+    "failures": 6,
+    "errors": 0,
+    "skipped": 0,
+    "junit_sha256": "882d69b8cde205cb228500198b14f89a2d194a19b86d6ff4a4c20e9a991f2c70"
+  },
+  "local_required_mode_full_suite": {
+    "tests": 287,
+    "failures": 0,
+    "errors": 1,
+    "skipped": 0,
+    "junit_sha256": "aa9b4a579dc15b5dd1fc7f3276c77d019266096deeb039cdd501cafdbb040a84"
+  },
+  "final_controller_and_archive_regressions": {
+    "tests": 51,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junit_sha256": "0a3e54688456f49180328e0d476c16959994e4adf378cf82c23f4b860aedfb09"
+  },
+  "controlled_boundary_cases": [
+    {
+      "start_m": 190.0,
+      "target_m": 150.0,
+      "dt_s": 1.0,
+      "minimum_m": 150.0,
+      "maximum_m": 190.0,
+      "limited": true
+    },
+    {
+      "start_m": 560.0,
+      "target_m": 600.0,
+      "dt_s": 1.0,
+      "minimum_m": 560.0,
+      "maximum_m": 600.0,
+      "limited": true
+    }
+  ],
+  "verification_limitations": [
+    "Required-mode local suite has one setup error: forced Windows MSVC Unicode-path build requires Visual Studio vswhere, absent on this host. Windows required CI remains unverified for this unpublished change; the existing gate is unchanged.",
+    "A separate optional GCC Unicode/special-character path build also failed locally; no optional GCC Unicode success is claimed. Ordinary C++ core and Python/C++ agreement passed in the required-mode suite.",
+    "The existing 29 product mutants are specifications adapted to the new target-floor expression, not rerun against this controller. The mutation runner controls passed; frozen old 29/29 belongs only to the original source.",
+    "Truth OU gusts remain unbounded and are not clipped. This software guard constrains commanded nominal Euler altitude only."
+  ]
+}

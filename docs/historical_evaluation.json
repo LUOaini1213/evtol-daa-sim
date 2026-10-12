@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "source_commit": "0e8566360e02e7d2c5afb45018578ea80c05f13a",
+  "encounters": 6000,
+  "artifact_hash_policy": "SHA256; JSON/CSV CRLF normalized to LF; binary exact",
+  "artifacts_sha256": {
+    "results/summary.json": "d73a63d7904d3f7b704948b79430ccf931b993f04f4593686a78187f8f1bc788",
+    "results/sweep.csv": "95ab33f0fa88e7cb53625acad57931b66f1e0009758fd51846f372172854f575",
+    "results/fail_cases.csv": "f9b9f0fd25eeab949f92741fcb707569535052f87ca5897f765952a655fba2aa",
+    "results/mutation_report.json": "4166ebaeb67702ad623af32acd152f8d11567a1da775d0abea3478db306efb45",
+    "results/mutation_report_first_run.json": "0008b67f55a9e27d59fce52d9b4582ad7d2a72f94c476ac1b0ec752755564024",
+    "results/mutation_evidence.zip": "a0f97eaca8a4154c1c283585bc3897c092e4f283007d37778adccb1c5d70bdec",
+    "docs/soc_curve.png": "79c5e6fa5c849431fc5ee3e671d4d748010484a367ebef566f96b1b007aa6b77",
+    "docs/lead_time_hist.png": "ed2d7e473354bd15e1610d4e7f1299881c45e9bb4040d0236e8f36ec4556a8c5"
+  },
+  "source_line_endings": {
+    "evaluation": {
+      "config/default.json": "CRLF",
+      "daa/__init__.py": "CRLF",
+      "daa/alerting.py": "CRLF",
+      "daa/encounters.py": "CRLF",
+      "daa/geometry.py": "LF",
+      "daa/metrics.py": "CRLF",
+      "daa/sensors.py": "CRLF",
+      "daa/sim.py": "CRLF",
+      "scripts/run_eval.py": "CRLF"
+    },
+    "mutation": {
+      "config/default.json": "CRLF",
+      "cpp/build.py": "CRLF",
+      "cpp/daa_cli.cpp": "LF",
+      "cpp/daa_core.hpp": "LF",
+      "daa/__init__.py": "CRLF",
+      "daa/alerting.py": "CRLF",
+      "daa/encounters.py": "CRLF",
+      "daa/geometry.py": "LF",
+      "daa/metrics.py": "CRLF",
+      "daa/sensors.py": "CRLF",
+      "daa/sim.py": "CRLF",
+      "pytest.ini": "CRLF",
+      "requirements.txt": "CRLF",
+      "scripts/make_readme.py": "CRLF",
+      "scripts/mutation_check.py": "CRLF",
+      "scripts/run_eval.py": "CRLF",
+      "tests/conftest.py": "CRLF",
+      "tests/test_alerting.py": "CRLF",
+      "tests/test_behavior_review.py": "LF",
+      "tests/test_build.py": "LF",
+      "tests/test_cpp_agreement.py": "CRLF",
+      "tests/test_geometry.py": "CRLF",
+      "tests/test_geometry_review.py": "LF",
+      "tests/test_manoeuvres.py": "CRLF",
+      "tests/test_metrics_sensors.py": "CRLF",
+      "tests/test_mutation_runner.py": "LF"
+    }
+  },
+  "notice": "Frozen old evaluation and mutation gate. LF/CRLF variants reconstruct the raw bytes recorded by their separate runs; all historical fingerprints and results stay unchanged. The older first-run mutation report is byte-preserved only."
+}

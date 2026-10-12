@@ -39,7 +39,7 @@ def table(header, rows):
 
 
 def render_mutation(mut):
-    L = ["### 8. Test-suite mutation check", ""]
+    L = ["### 8. Historical test-suite mutation check", ""]
     L.append(f"`scripts/mutation_check.py` planted {mut['total']} deliberate bugs, one at a time, in fresh "
              f"copies of the repository; tests detected {mut['caught']} of {mut['total']}. "
              f"The unmutated copy passed first ({mut['baseline']['summary']}).")
@@ -64,7 +64,12 @@ def render_mutation(mut):
 def render(res):
     m = res["meta"]
     L = []
-    L.append(f"All numbers below are produced by `scripts/run_eval.py` (seed {m['seed']}, "
+    L.append("These are preserved historical evaluations of [source commit "
+             "`0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a). "
+             "They do not evaluate the current altitude-constrained controller. No new 6,000-encounter evaluation "
+             "or full mutation gate is claimed for that controller; see [the local regression scope](docs/ALTITUDE_CONSTRAINTS.md).")
+    L.append("")
+    L.append(f"Historical numbers below were produced by that version of `scripts/run_eval.py` (seed {m['seed']}, "
              f"{m['n']} encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% "
              "Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.")
     L.append("")
