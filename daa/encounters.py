@@ -13,6 +13,7 @@ independent Ornstein-Uhlenbeck velocity disturbance on each aircraft.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from numbers import Integral
 
 import numpy as np
 
@@ -91,12 +92,19 @@ def _sample_params(rng, m, cfg):
                 t_cpa0=t_cpa0, hmd0=hmd0, vmd0=vmd0, h0=h0)
 
 
+def validate_encounter_count(n):
+    """Reject ambiguous counts before sampling or allocating trajectory arrays."""
+    if isinstance(n, bool) or not isinstance(n, Integral) or n < 1:
+        raise ValueError("n must be a positive integer")
+    return int(n)
+
+
 def generate(cfg, n=None, seed=None):
     ec = cfg["encounter"]
     sim = cfg["simulation"]
     perf = cfg["performance"]
     hz = cfg["hazard"]["well_clear"]
-    n = int(n or ec["n_encounters"])
+    n = validate_encounter_count(ec["n_encounters"] if n is None else n)
     seed = int(ec["seed"] if seed is None else seed)
     dt = float(sim["dt"])
     K = int(round(sim["horizon"] / dt))
@@ -126,7 +134,9 @@ def generate(cfg, n=None, seed=None):
         # undisturbed onset must leave room for a 55 s alert
         hit, lo, _ = g.wcv_interval(s0, vrel, hz["DTHR"], hz["ZTHR"], 0.0, horizon)
         ok_onset = ~hit | (lo >= ec["min_onset_time"])
-        z_end = z_i0 + p["vz_i"] * np.minimum(p["t_cpa0"] + 30.0, horizon)
+        # The altitude acceptance band covers the full nominal simulated path.
+        # Gusts are added later and remain unbounded; they are not clipped here.
+        z_end = z_i0 + p["vz_i"] * horizon
         ok_alt = (np.minimum(z_i0, z_end) >= 30.0) & (np.maximum(z_i0, z_end) <= 1200.0)
         reasons["slow_closure"] += int((~ok_speed).sum())
         reasons["early_or_initial_loss"] += int((ok_speed & ~ok_onset).sum())

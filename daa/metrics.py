@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from numbers import Integral
 
 import numpy as np
 from scipy import stats
@@ -53,10 +54,32 @@ def rate(mask, subset=None, level=0.95):
     return dict(k=k, n=n, p=p, lo=lo, hi=hi)
 
 
+def _paired(x, y, *, binary=False):
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    if x.ndim != 1 or y.ndim != 1:
+        raise ValueError("paired inputs must be one-dimensional")
+    if x.size == 0 or x.size != y.size:
+        raise ValueError("paired inputs must have equal, nonempty lengths")
+    if not np.isfinite(x).all() or not np.isfinite(y).all():
+        raise ValueError("paired inputs must be finite")
+    if binary:
+        if not np.isin(x, [0., 1.]).all() or not np.isin(y, [0., 1.]).all():
+            raise ValueError("paired McNemar outcomes must be binary")
+        return x.astype(bool), y.astype(bool)
+    return x, y
+
+
+def _bootstrap_inputs(x, y, n_boot, level):
+    if isinstance(n_boot, bool) or not isinstance(n_boot, Integral) or n_boot < 1:
+        raise ValueError("n_boot must be a positive integer")
+    if not math.isfinite(level) or not 0. < level < 1.:
+        raise ValueError("confidence level must be finite and strictly between 0 and 1")
+    return _paired(x, y)
+
+
 def mcnemar_exact(x, y):
     """Exact two-sided McNemar test on paired booleans."""
-    x = np.asarray(x, bool)
-    y = np.asarray(y, bool)
+    x, y = _paired(x, y, binary=True)
     b = int((x & ~y).sum())
     c = int((~x & y).sum())
     if b + c == 0:
@@ -66,8 +89,7 @@ def mcnemar_exact(x, y):
 
 def paired_bootstrap_diff(x, y, n_boot, seed, level=0.95):
     """CI for mean(x) - mean(y) with paired resampling."""
-    x = np.asarray(x, float)
-    y = np.asarray(y, float)
+    x, y = _bootstrap_inputs(x, y, n_boot, level)
     n = x.size
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, n, size=(n_boot, n))
@@ -78,8 +100,7 @@ def paired_bootstrap_diff(x, y, n_boot, seed, level=0.95):
 
 def paired_bootstrap_ratio(x, y, n_boot, seed, level=0.95):
     """CI for mean(x)/mean(y) with paired resampling (risk ratio)."""
-    x = np.asarray(x, float)
-    y = np.asarray(y, float)
+    x, y = _bootstrap_inputs(x, y, n_boot, level)
     n = x.size
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, n, size=(n_boot, n))

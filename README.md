@@ -5,6 +5,12 @@ alerting logics and avoidance manoeuvres for an eVTOL in low-altitude airspace, 
 synthetic Monte-Carlo encounters. It is not certified, not derived from any real system,
 and none of the encounter data comes from real traffic.
 
+The published tables, figures and mutation gate are preserved evidence of
+[source `0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a).
+The current controller additionally constrains its commanded altitude trajectory;
+no new 6,000-encounter evaluation is claimed for that version. See
+[the correction and deterministic verification scope](docs/ALTITUDE_CONSTRAINTS.md).
+
 What is in the repository:
 
 - `daa/` - Python simulator: encounter generator, surveillance and tracker model, three
@@ -28,8 +34,12 @@ climbing or descending through the ownship altitude). Each encounter is specifie
 closest point of approach (CPA) of the undisturbed straight-line paths - time to CPA
 80-120 s, horizontal miss distance 0-1500 m, vertical offset +-300 m - and then propagated
 back to t = 0. Encounters that start inside the well-clear volume, lose well clear in less
-than 60 s, close slower than 5 m/s, or put the intruder outside 30-1200 m altitude are
-rejected and counted. 20% of intruders make an unannounced 30-90 deg turn 10-60 s before
+than 60 s, close slower than 5 m/s, or put the nominal intruder path outside 30-1200 m
+altitude at any point in the full simulation horizon are rejected and counted. The
+independent gust process is added afterwards and can take a realised path outside that
+band; it is not clipped. Sampling uses batches, so accepted encounters plus rejection
+counts need not sum to the number tried: surplus valid candidates are not retained.
+20% of intruders make an unannounced 30-90 deg turn 10-60 s before
 the nominal CPA, which a straight-line predictor cannot anticipate.
 
 **Disturbances.** A steady uniform wind moves both aircraft equally and cancels out of the
@@ -42,6 +52,10 @@ Reports are lost according to a two-state (Gilbert) burst model. An alpha-beta t
 axis produces the intruder track; its gains come from the steady-state Kalman relations for
 the constant-velocity model (checked against a Riccati iteration in the tests). Three
 conditions: ideal (track = truth), nominal, degraded (3x noise, about 20% report loss).
+For noisy surveillance, the first two reports are assumed received for track initiation.
+A non-cooperative track starts with a zero velocity prior at t=0; its two-position
+velocity estimate becomes available at the second report. It never uses a future report
+to construct an earlier track state. Ideal surveillance remains a truth reference.
 
 **Alerting logics.** All three use three tiers - preventive, corrective, warning - and the
 alert level is the highest tier whose condition holds.
@@ -59,6 +73,10 @@ this on 20,000 random states), so WCV can only add alerts: it trades nuisance al
 earlier ones, and the threshold sweeps compare the logics at equal nuisance rates. The well-clear violation test
 is computed analytically as an interval of time (horizontal interval from the modified-tau
 quadratic, intersected with the vertical interval), following the DAIDALUS source.
+The horizontal interval is evaluated from cross-track miss distance and time to CPA to
+avoid cancellation at exact tangency. Python and C++ require finite real state components
+and finite nonnegative thresholds; invalid inputs are rejected. Geometry values outside
+the supported finite arithmetic range are errors, not valid alert decisions.
 Optionally the alert level is filtered: a level is raised only when present in 2 of the last
 4 cycles and held until it has been absent for 5 cycles ("filtered" below; "raw" is
 unfiltered).
@@ -146,117 +164,119 @@ Every parameter is in `config/default.json` with its source string.
 ## Results
 
 <!-- BEGIN GENERATED RESULTS (scripts/make_readme.py) -->
-All numbers below are produced by `scripts/run_eval.py` (seed 20260928, 6000 encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.
+These are preserved historical evaluations of [source commit `0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a). They do not evaluate the current altitude-constrained controller. No new 6,000-encounter evaluation or full mutation gate is claimed for that controller; see [the local regression scope](docs/ALTITUDE_CONSTRAINTS.md).
 
-Encounter set: 6000 accepted of 12064 sampled (rejected: 175 slow closure, 230 loss too early, 1995 intruder altitude out of range). Geometry: head-on 1739, crossing 1705, overtaking 1437, vertical 1119. Intruder: eVTOL 2000, drone 2054, GA 1946; 1235 intruders make an unannounced turn. Without avoidance, 1249/6000 = 20.8% [19.8, 21.9] of encounters lose well clear and 66/6000 = 1.1% [0.9, 1.4] reach NMAC. Surveillance report loss: nominal 3.8%, degraded 19.6%. Evaluation run time: 261 s (Python 3.11.5, numpy 1.24.3).
+Historical numbers below were produced by that version of `scripts/run_eval.py` (seed 20260928, 6000 encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.
+
+Encounter set: 6000 accepted of 12064 sampled (rejected: 175 slow closure, 230 loss too early, 2555 intruder altitude out of range). Geometry: head-on 1817, crossing 1806, overtaking 1503, vertical 874. Intruder: eVTOL 1962, drone 2082, GA 1956; 1235 intruders make an unannounced turn. Without avoidance, 1270/6000 = 21.2% [20.2, 22.2] of encounters lose well clear and 61/6000 = 1.0% [0.8, 1.3] reach NMAC. Surveillance report loss: nominal 3.8%, degraded 19.6%. Simulation and analysis time, excluding exports/plots: 140 s (Python 3.11.5, numpy 1.26.4).
 
 ### 1. Alerting performance (open loop, no avoidance), nominal surveillance, filtered alerts
 
 | strategy | missed or late (lead < 25 s) | nuisance | median lead (s) | 10th pct lead (s) | alert episodes per hazardous enc. |
 |---|---|---|---|---|---|
-| CPA thresholds | 20.8% [18.7, 23.2] | 11.8% [10.9, 12.7] | 42.9 | 13.7 | 1.13 |
-| WCV | 12.6% [10.8, 14.5] | 16.4% [15.4, 17.5] | 51.9 | 21.5 | 1.17 |
-| WCV + tau_mod 20 s | 9.8% [8.3, 11.6] | 21.8% [20.7, 23.0] | 62.8 | 25.9 | 1.21 |
+| CPA thresholds | 21.2% [19.0, 23.5] | 11.7% [10.8, 12.7] | 43.2 | 14.6 | 1.15 |
+| WCV | 13.5% [11.8, 15.5] | 16.2% [15.1, 17.2] | 52.1 | 19.6 | 1.22 |
+| WCV + tau_mod 20 s | 11.2% [9.6, 13.0] | 21.0% [19.8, 22.2] | 62.7 | 23.0 | 1.26 |
 
 Threshold sweeps at matched nuisance: lowest missed-or-late rate among sweep points whose nuisance rate is at most the given cap (figure below shows all points).
 
 | nuisance cap | swept parameter | CPA thresholds | WCV | WCV + tau_mod 20 s |
 |---|---|---|---|---|
-| <= 10% | alert time T | 23.2% [21.0, 25.6] at 50 s | 14.2% [12.3, 16.2] at 35 s | 13.2% [11.4, 15.2] at 25 s |
-| <= 10% | threshold scale | 29.0% [26.5, 31.6] at 0.9x | 32.1% [29.6, 34.7] at 0.8x | 34.1% [31.5, 36.8] at 0.7x |
-| <= 15% | alert time T | 18.8% [16.7, 21.1] at 60 s | 12.8% [11.1, 14.8] at 50 s | 10.8% [9.2, 12.7] at 35 s |
-| <= 15% | threshold scale | 20.8% [18.7, 23.2] at 1x | 22.2% [20.0, 24.6] at 0.9x | 18.4% [16.4, 20.7] at 0.9x |
-| <= 20% | alert time T | 16.5% [14.5, 18.7] at 75 s | 12.5% [10.8, 14.4] at 60 s | 10.0% [8.5, 11.8] at 45 s |
-| <= 20% | threshold scale | 14.7% [12.9, 16.8] at 1.1x | 12.6% [10.8, 14.5] at 1x | 18.4% [16.4, 20.7] at 0.9x |
+| <= 10% | alert time T | 22.8% [20.6, 25.2] at 50 s | 14.0% [12.2, 16.0] at 40 s | 13.4% [11.6, 15.4] at 25 s |
+| <= 10% | threshold scale | 29.1% [26.6, 31.6] at 0.9x | 32.1% [29.6, 34.7] at 0.8x | 36.9% [34.3, 39.6] at 0.7x |
+| <= 15% | alert time T | 18.5% [16.5, 20.7] at 60 s | 13.7% [11.9, 15.7] at 50 s | 11.5% [9.9, 13.4] at 35 s |
+| <= 15% | threshold scale | 21.2% [19.0, 23.5] at 1x | 21.2% [19.0, 23.5] at 0.9x | 17.4% [15.4, 19.6] at 0.9x |
+| <= 20% | alert time T | 15.7% [13.8, 17.8] at 75 s | 13.5% [11.7, 15.5] at 65 s | 11.3% [9.7, 13.2] at 45 s |
+| <= 20% | threshold scale | 14.7% [12.9, 16.8] at 1.1x | 13.5% [11.8, 15.5] at 1x | 17.4% [15.4, 19.6] at 0.9x |
 
 ### 2. Surveillance quality and alert filtering
 
 | surveillance | strategy | missed/late raw | missed/late filtered | nuisance raw | nuisance filtered | missed/late if first alert counted |
 |---|---|---|---|---|---|---|
-| ideal | CPA thresholds | 22.7% [20.5, 25.1] | 19.2% [17.1, 21.5] | 9.3% [8.5, 10.2] | 8.0% [7.2, 8.8] | 12.2% [10.5, 14.2] |
-| ideal | WCV | 15.1% [13.3, 17.2] | 11.1% [9.5, 13.0] | 12.4% [11.5, 13.4] | 11.0% [10.2, 12.0] | 4.9% [3.8, 6.2] |
-| ideal | WCV + tau_mod 20 s | 12.7% [10.9, 14.6] | 9.6% [8.1, 11.4] | 15.8% [14.8, 16.9] | 14.1% [13.2, 15.1] | 3.7% [2.8, 4.9] |
-| nominal | CPA thresholds | 33.1% [30.6, 35.8] | 20.8% [18.7, 23.2] | 15.5% [14.5, 16.5] | 11.8% [10.9, 12.7] | 11.9% [10.2, 13.8] |
-| nominal | WCV | 24.3% [22.0, 26.8] | 12.6% [10.8, 14.5] | 20.3% [19.2, 21.5] | 16.4% [15.4, 17.5] | 5.1% [4.0, 6.5] |
-| nominal | WCV + tau_mod 20 s | 19.1% [17.0, 21.3] | 9.8% [8.3, 11.6] | 26.0% [24.8, 27.3] | 21.8% [20.7, 23.0] | 3.6% [2.7, 4.8] |
-| degraded | CPA thresholds | 63.9% [61.2, 66.5] | 41.9% [39.2, 44.6] | 28.2% [27.0, 29.5] | 21.0% [19.9, 22.2] | 31.9% [29.4, 34.6] |
-| degraded | WCV | 54.0% [51.2, 56.7] | 34.3% [31.7, 36.9] | 33.8% [32.5, 35.2] | 26.7% [25.5, 28.0] | 25.4% [23.0, 27.9] |
-| degraded | WCV + tau_mod 20 s | 41.6% [38.9, 44.4] | 30.4% [27.9, 33.0] | 39.3% [37.9, 40.7] | 31.4% [30.1, 32.8] | 23.1% [20.9, 25.6] |
+| ideal | CPA thresholds | 24.9% [22.6, 27.3] | 18.7% [16.6, 20.9] | 8.4% [7.6, 9.2] | 7.3% [6.6, 8.0] | 11.1% [9.5, 12.9] |
+| ideal | WCV | 15.7% [13.8, 17.8] | 11.0% [9.4, 12.9] | 11.3% [10.4, 12.2] | 10.0% [9.2, 10.9] | 3.3% [2.5, 4.4] |
+| ideal | WCV + tau_mod 20 s | 13.1% [11.3, 15.0] | 9.6% [8.1, 11.4] | 14.7% [13.7, 15.7] | 13.1% [12.2, 14.1] | 2.6% [1.9, 3.6] |
+| nominal | CPA thresholds | 32.3% [29.8, 34.9] | 21.2% [19.0, 23.5] | 15.4% [14.4, 16.4] | 11.7% [10.8, 12.7] | 12.3% [10.6, 14.2] |
+| nominal | WCV | 24.0% [21.7, 26.4] | 13.5% [11.8, 15.5] | 19.9% [18.8, 21.1] | 16.2% [15.1, 17.2] | 4.1% [3.1, 5.3] |
+| nominal | WCV + tau_mod 20 s | 18.3% [16.2, 20.5] | 11.2% [9.6, 13.0] | 25.9% [24.7, 27.2] | 21.0% [19.8, 22.2] | 3.1% [2.3, 4.2] |
+| degraded | CPA thresholds | 65.0% [62.3, 67.5] | 43.5% [40.8, 46.3] | 29.0% [27.7, 30.3] | 21.1% [20.0, 22.3] | 31.5% [29.0, 34.1] |
+| degraded | WCV | 53.3% [50.6, 56.0] | 33.8% [31.2, 36.4] | 34.1% [32.8, 35.5] | 26.6% [25.4, 27.9] | 24.1% [21.8, 26.5] |
+| degraded | WCV + tau_mod 20 s | 41.5% [38.8, 44.2] | 29.8% [27.4, 32.4] | 40.1% [38.7, 41.5] | 31.4% [30.1, 32.8] | 22.8% [20.5, 25.1] |
 
 ### 3. Paired comparisons on the same encounters (filtered alerts)
 
 | surveillance | a - b | metric | n | difference | discordant a-only / b-only | McNemar exact p |
 |---|---|---|---|---|---|---|
-| nominal | WCV - CPA thresholds | missed_or_late | 1249 | -8.2 pts [-9.8, -6.6] | 7 / 110 | 6.4e-25 |
-| nominal | WCV - CPA thresholds | nuisance | 4751 | +4.7 pts [+4.0, +5.2] | 221 / 0 | 5.9e-67 |
-| nominal | WCV + tau_mod 20 s - WCV | missed_or_late | 1249 | -2.7 pts [-3.7, -1.9] | 0 / 34 | 1.2e-10 |
-| nominal | WCV + tau_mod 20 s - WCV | nuisance | 4751 | +5.4 pts [+4.8, +6.1] | 256 / 0 | 1.7e-77 |
-| nominal | WCV + tau_mod 20 s - CPA thresholds | missed_or_late | 1249 | -11.0 pts [-12.8, -9.1] | 4 / 141 | 8.1e-37 |
-| nominal | WCV + tau_mod 20 s - CPA thresholds | nuisance | 4751 | +10.0 pts [+9.2, +10.9] | 477 / 0 | 5.1e-144 |
-| degraded | WCV - CPA thresholds | missed_or_late | 1249 | -7.6 pts [-9.4, -5.8] | 19 / 114 | 1.1e-17 |
-| degraded | WCV - CPA thresholds | nuisance | 4751 | +5.7 pts [+5.0, +6.3] | 269 / 0 | 2.1e-81 |
-| degraded | WCV + tau_mod 20 s - WCV | missed_or_late | 1249 | -3.8 pts [-5.0, -2.7] | 1 / 49 | 9.1e-14 |
-| degraded | WCV + tau_mod 20 s - WCV | nuisance | 4751 | +4.7 pts [+4.1, +5.3] | 224 / 0 | 7.4e-68 |
-| degraded | WCV + tau_mod 20 s - CPA thresholds | missed_or_late | 1249 | -11.4 pts [-13.3, -9.5] | 13 / 156 | 2.7e-32 |
-| degraded | WCV + tau_mod 20 s - CPA thresholds | nuisance | 4751 | +10.4 pts [+9.5, +11.2] | 493 / 0 | 7.8e-149 |
+| nominal | WCV - CPA thresholds | missed_or_late | 1270 | -7.6 pts [-9.3, -6.0] | 10 / 107 | 1.2e-21 |
+| nominal | WCV - CPA thresholds | nuisance | 4730 | +4.4 pts [+3.9, +5.1] | 210 / 0 | 1.2e-63 |
+| nominal | WCV + tau_mod 20 s - WCV | missed_or_late | 1270 | -2.4 pts [-3.2, -1.6] | 0 / 30 | 1.9e-09 |
+| nominal | WCV + tau_mod 20 s - WCV | nuisance | 4730 | +4.8 pts [+4.2, +5.5] | 228 / 0 | 4.6e-69 |
+| nominal | WCV + tau_mod 20 s - CPA thresholds | missed_or_late | 1270 | -10.0 pts [-11.8, -8.3] | 6 / 133 | 2.7e-32 |
+| nominal | WCV + tau_mod 20 s - CPA thresholds | nuisance | 4730 | +9.3 pts [+8.4, +10.1] | 438 / 0 | 2.8e-132 |
+| degraded | WCV - CPA thresholds | missed_or_late | 1270 | -9.8 pts [-11.6, -8.0] | 11 / 135 | 2.7e-28 |
+| degraded | WCV - CPA thresholds | nuisance | 4730 | +5.5 pts [+4.9, +6.2] | 260 / 0 | 1.1e-78 |
+| degraded | WCV + tau_mod 20 s - WCV | missed_or_late | 1270 | -3.9 pts [-5.0, -2.9] | 1 / 51 | 2.4e-14 |
+| degraded | WCV + tau_mod 20 s - WCV | nuisance | 4730 | +4.8 pts [+4.2, +5.4] | 227 / 0 | 9.3e-69 |
+| degraded | WCV + tau_mod 20 s - CPA thresholds | missed_or_late | 1270 | -13.7 pts [-15.7, -11.8] | 4 / 178 | 1.5e-47 |
+| degraded | WCV + tau_mod 20 s - CPA thresholds | nuisance | 4730 | +10.3 pts [+9.5, +11.2] | 487 / 0 | 5e-147 |
 
 ### 4. Closed loop: avoidance manoeuvres
 
 | surveillance | alerting + policy | loss of well clear | NMAC count (rate) | LoWC risk ratio | manoeuvred | manoeuvred when not needed | mean max heading change (deg) | mean max altitude change (m) | emergency escalation | induced LoWC |
 |---|---|---|---|---|---|---|---|---|---|---|
-| nominal | no manoeuvre | 20.8% [19.8, 21.9] | 66 (1.10% [0.87, 1.40]) | 1 | 0.0% | 0.0% | - | - | 0.0% | 0 |
-| nominal | CPA thresholds + heading | 1.4% [1.1, 1.7] | 1 (0.02% [0.00, 0.09]) | 0.067 [0.054, 0.080] | 29.8% | 11.6% | 20.3 | 2.0 | 3.0% | 2 |
-| nominal | CPA thresholds + vertical | 3.5% [3.1, 4.0] | 1 (0.02% [0.00, 0.09]) | 0.170 [0.150, 0.190] | 29.4% | 11.2% | 5.9 | 122.3 | 6.3% | 2 |
-| nominal | CPA thresholds + combined | 1.2% [1.0, 1.5] | 1 (0.02% [0.00, 0.09]) | 0.059 [0.047, 0.071] | 29.8% | 11.6% | 23.2 | 5.0 | 2.6% | 3 |
-| nominal | WCV + heading | 0.7% [0.5, 0.9] | 0 (0.00% [0.00, 0.06]) | 0.032 [0.023, 0.042] | 33.7% | 16.4% | 18.5 | 2.1 | 3.0% | 1 |
-| nominal | WCV + vertical | 1.1% [0.9, 1.4] | 0 (0.00% [0.00, 0.06]) | 0.052 [0.040, 0.064] | 33.4% | 16.0% | 6.9 | 119.3 | 7.4% | 1 |
-| nominal | WCV + combined | 0.5% [0.4, 0.8] | 0 (0.00% [0.00, 0.06]) | 0.026 [0.017, 0.035] | 33.7% | 16.4% | 22.3 | 4.0 | 2.6% | 2 |
-| nominal | WCV + tau_mod 20 s + heading | 0.6% [0.4, 0.8] | 0 (0.00% [0.00, 0.06]) | 0.029 [0.020, 0.038] | 37.8% | 21.5% | 16.9 | 1.4 | 5.6% | 2 |
-| nominal | WCV + tau_mod 20 s + vertical | 0.5% [0.4, 0.8] | 0 (0.00% [0.00, 0.06]) | 0.026 [0.017, 0.035] | 37.6% | 21.3% | 7.4 | 108.2 | 11.9% | 2 |
-| nominal | WCV + tau_mod 20 s + combined | 0.4% [0.3, 0.7] | 0 (0.00% [0.00, 0.06]) | 0.022 [0.014, 0.030] | 37.8% | 21.5% | 22.2 | 2.1 | 4.8% | 5 |
-| degraded | no manoeuvre | 20.8% [19.8, 21.9] | 66 (1.10% [0.87, 1.40]) | 1 | 0.0% | 0.0% | - | - | 0.0% | 0 |
-| degraded | CPA thresholds + heading | 3.7% [3.3, 4.2] | 5 (0.08% [0.04, 0.19]) | 0.178 [0.157, 0.199] | 36.0% | 20.7% | 25.1 | 6.2 | 8.7% | 10 |
-| degraded | CPA thresholds + vertical | 6.6% [6.0, 7.2] | 6 (0.10% [0.05, 0.22]) | 0.315 [0.289, 0.341] | 35.6% | 20.2% | 15.5 | 105.2 | 14.7% | 20 |
-| degraded | CPA thresholds + combined | 3.6% [3.1, 4.1] | 5 (0.08% [0.04, 0.19]) | 0.171 [0.152, 0.193] | 36.0% | 20.7% | 27.8 | 9.9 | 8.5% | 12 |
-| degraded | WCV + heading | 3.3% [2.9, 3.8] | 4 (0.07% [0.03, 0.17]) | 0.158 [0.139, 0.178] | 40.9% | 26.5% | 22.7 | 7.6 | 11.2% | 11 |
-| degraded | WCV + vertical | 3.7% [3.2, 4.2] | 5 (0.08% [0.04, 0.19]) | 0.176 [0.156, 0.199] | 40.7% | 26.2% | 14.7 | 100.8 | 18.4% | 11 |
-| degraded | WCV + combined | 3.2% [2.8, 3.7] | 4 (0.07% [0.03, 0.17]) | 0.153 [0.135, 0.174] | 40.9% | 26.5% | 26.1 | 9.0 | 11.0% | 14 |
-| degraded | WCV + tau_mod 20 s + heading | 3.0% [2.6, 3.5] | 3 (0.05% [0.02, 0.15]) | 0.145 [0.127, 0.164] | 44.5% | 30.8% | 21.2 | 7.0 | 16.4% | 11 |
-| degraded | WCV + tau_mod 20 s + vertical | 3.2% [2.8, 3.7] | 3 (0.05% [0.02, 0.15]) | 0.156 [0.136, 0.176] | 44.3% | 30.6% | 14.8 | 87.6 | 25.6% | 12 |
-| degraded | WCV + tau_mod 20 s + combined | 2.9% [2.5, 3.4] | 3 (0.05% [0.02, 0.15]) | 0.141 [0.123, 0.161] | 44.5% | 30.8% | 25.3 | 7.4 | 16.0% | 13 |
+| nominal | no manoeuvre | 21.2% [20.2, 22.2] | 61 (1.02% [0.79, 1.30]) | 1 | 0.0% | 0.0% | - | - | 0.0% | 0 |
+| nominal | CPA thresholds + heading | 1.3% [1.1, 1.7] | 0 (0.00% [0.00, 0.06]) | 0.063 [0.050, 0.077] | 30.0% | 11.6% | 20.8 | 2.2 | 2.8% | 3 |
+| nominal | CPA thresholds + vertical | 3.2% [2.8, 3.7] | 1 (0.02% [0.00, 0.09]) | 0.151 [0.132, 0.171] | 29.8% | 11.4% | 7.9 | 122.0 | 5.9% | 0 |
+| nominal | CPA thresholds + combined | 1.2% [0.9, 1.5] | 0 (0.00% [0.00, 0.06]) | 0.056 [0.044, 0.069] | 30.0% | 11.6% | 24.2 | 5.1 | 2.5% | 2 |
+| nominal | WCV + heading | 0.7% [0.5, 0.9] | 0 (0.00% [0.00, 0.06]) | 0.033 [0.024, 0.043] | 33.8% | 16.1% | 19.7 | 1.9 | 2.9% | 5 |
+| nominal | WCV + vertical | 0.8% [0.6, 1.0] | 0 (0.00% [0.00, 0.06]) | 0.036 [0.026, 0.047] | 33.6% | 15.8% | 11.8 | 120.2 | 7.3% | 1 |
+| nominal | WCV + combined | 0.5% [0.3, 0.7] | 0 (0.00% [0.00, 0.06]) | 0.023 [0.015, 0.031] | 33.8% | 16.1% | 24.1 | 3.4 | 2.5% | 5 |
+| nominal | WCV + tau_mod 20 s + heading | 0.5% [0.3, 0.7] | 0 (0.00% [0.00, 0.06]) | 0.022 [0.015, 0.030] | 37.5% | 20.7% | 22.4 | 1.8 | 5.5% | 1 |
+| nominal | WCV + tau_mod 20 s + vertical | 0.3% [0.2, 0.5] | 0 (0.00% [0.00, 0.06]) | 0.015 [0.009, 0.022] | 37.1% | 20.3% | 23.1 | 106.5 | 11.9% | 0 |
+| nominal | WCV + tau_mod 20 s + combined | 0.3% [0.2, 0.5] | 0 (0.00% [0.00, 0.06]) | 0.015 [0.009, 0.022] | 37.5% | 20.7% | 27.9 | 2.6 | 4.9% | 5 |
+| degraded | no manoeuvre | 21.2% [20.2, 22.2] | 61 (1.02% [0.79, 1.30]) | 1 | 0.0% | 0.0% | - | - | 0.0% | 0 |
+| degraded | CPA thresholds + heading | 4.2% [3.7, 4.7] | 4 (0.07% [0.03, 0.17]) | 0.198 [0.176, 0.221] | 36.2% | 20.7% | 27.7 | 7.2 | 8.9% | 15 |
+| degraded | CPA thresholds + vertical | 6.6% [6.0, 7.2] | 7 (0.12% [0.06, 0.24]) | 0.310 [0.285, 0.335] | 35.8% | 20.2% | 19.9 | 105.1 | 14.6% | 9 |
+| degraded | CPA thresholds + combined | 3.9% [3.4, 4.4] | 4 (0.07% [0.03, 0.17]) | 0.184 [0.163, 0.205] | 36.2% | 20.7% | 30.0 | 10.6 | 8.4% | 13 |
+| degraded | WCV + heading | 3.3% [2.9, 3.8] | 3 (0.05% [0.02, 0.15]) | 0.155 [0.135, 0.175] | 41.1% | 26.4% | 28.9 | 8.4 | 11.3% | 9 |
+| degraded | WCV + vertical | 3.5% [3.0, 4.0] | 4 (0.07% [0.03, 0.17]) | 0.164 [0.143, 0.185] | 40.7% | 25.8% | 25.5 | 102.4 | 17.8% | 8 |
+| degraded | WCV + combined | 3.1% [2.7, 3.6] | 3 (0.05% [0.02, 0.15]) | 0.146 [0.127, 0.165] | 41.1% | 26.4% | 32.0 | 9.8 | 10.8% | 11 |
+| degraded | WCV + tau_mod 20 s + heading | 2.8% [2.4, 3.2] | 4 (0.07% [0.03, 0.17]) | 0.130 [0.112, 0.148] | 45.1% | 31.1% | 33.6 | 8.9 | 16.1% | 5 |
+| degraded | WCV + tau_mod 20 s + vertical | 2.5% [2.2, 3.0] | 4 (0.07% [0.03, 0.17]) | 0.120 [0.103, 0.139] | 44.8% | 30.7% | 37.3 | 88.9 | 24.8% | 3 |
+| degraded | WCV + tau_mod 20 s + combined | 2.6% [2.2, 3.1] | 4 (0.07% [0.03, 0.17]) | 0.124 [0.105, 0.141] | 45.1% | 31.1% | 37.5 | 9.3 | 15.7% | 10 |
 
 Paired differences in loss-of-well-clear rate:
 
 | surveillance | a - b | difference | discordant a-only / b-only | McNemar exact p |
 |---|---|---|---|---|
-| nominal | wcv/heading - cpa/heading | -0.73 pts [-0.97, -0.52] | 1 / 45 | 1.3e-12 |
-| nominal | wcv/vertical - wcv/heading | +0.42 pts [+0.18, +0.65] | 37 / 12 | 0.00047 |
-| nominal | wcv/combined - wcv/heading | -0.13 pts [-0.23, -0.03] | 1 / 9 | 0.021 |
-| nominal | wcv_tau/heading - wcv/heading | -0.07 pts [-0.18, +0.05] | 4 / 8 | 0.39 |
-| degraded | wcv/heading - cpa/heading | -0.42 pts [-0.65, -0.18] | 12 / 37 | 0.00047 |
-| degraded | wcv/vertical - wcv/heading | +0.38 pts [+0.15, +0.62] | 39 / 16 | 0.0027 |
-| degraded | wcv/combined - wcv/heading | -0.10 pts [-0.22, +0.02] | 4 / 10 | 0.18 |
-| degraded | wcv_tau/heading - wcv/heading | -0.27 pts [-0.48, -0.07] | 13 / 29 | 0.02 |
+| nominal | wcv/heading - cpa/heading | -0.63 pts [-0.88, -0.40] | 7 / 45 | 7e-08 |
+| nominal | wcv/vertical - wcv/heading | +0.07 pts [-0.17, +0.30] | 26 / 22 | 0.67 |
+| nominal | wcv/combined - wcv/heading | -0.22 pts [-0.33, -0.10] | 1 / 14 | 0.00098 |
+| nominal | wcv_tau/heading - wcv/heading | -0.23 pts [-0.37, -0.10] | 2 / 16 | 0.0013 |
+| degraded | wcv/heading - cpa/heading | -0.92 pts [-1.18, -0.65] | 5 / 60 | 4.9e-13 |
+| degraded | wcv/vertical - wcv/heading | +0.18 pts [-0.08, +0.47] | 41 / 30 | 0.24 |
+| degraded | wcv/combined - wcv/heading | -0.18 pts [-0.33, -0.03] | 5 / 16 | 0.027 |
+| degraded | wcv_tau/heading - wcv/heading | -0.53 pts [-0.75, -0.33] | 5 / 37 | 4.4e-07 |
 
 ### 5. Re-planning versus a one-shot manoeuvre
 
 | surveillance | alerting + policy | LoWC one-shot | LoWC with re-planning | difference | discordant re-plan-only / one-shot-only | McNemar exact p |
 |---|---|---|---|---|---|---|
-| nominal | WCV + heading | 0.9% [0.7, 1.2] | 0.7% [0.5, 0.9] | -0.25 pts [-0.38, -0.13] | 0 / 15 | 6.1e-05 |
-| nominal | WCV + vertical | 1.6% [1.3, 1.9] | 1.1% [0.9, 1.4] | -0.47 pts [-0.73, -0.18] | 20 / 48 | 0.00091 |
-| nominal | WCV + tau_mod 20 s + heading | 1.4% [1.1, 1.7] | 0.6% [0.4, 0.8] | -0.80 pts [-1.03, -0.58] | 0 / 48 | 7.1e-15 |
-| nominal | WCV + tau_mod 20 s + vertical | 1.8% [1.4, 2.1] | 0.5% [0.4, 0.8] | -1.22 pts [-1.53, -0.92] | 7 / 80 | 8.3e-17 |
-| degraded | WCV + heading | 4.0% [3.5, 4.5] | 3.3% [2.9, 3.8] | -0.67 pts [-0.88, -0.47] | 1 / 41 | 2e-11 |
-| degraded | WCV + vertical | 4.8% [4.3, 5.4] | 3.7% [3.2, 4.2] | -1.12 pts [-1.43, -0.80] | 15 / 82 | 2.4e-12 |
-| degraded | WCV + tau_mod 20 s + heading | 4.7% [4.2, 5.3] | 3.0% [2.6, 3.5] | -1.68 pts [-2.02, -1.35] | 1 / 102 | 2.1e-29 |
-| degraded | WCV + tau_mod 20 s + vertical | 5.3% [4.8, 5.9] | 3.2% [2.8, 3.7] | -2.08 pts [-2.45, -1.70] | 7 / 132 | 5.2e-31 |
+| nominal | WCV + heading | 0.9% [0.7, 1.1] | 0.7% [0.5, 0.9] | -0.17 pts [-0.27, -0.07] | 0 / 10 | 0.002 |
+| nominal | WCV + vertical | 1.0% [0.8, 1.3] | 0.8% [0.6, 1.0] | -0.27 pts [-0.47, -0.08] | 9 / 25 | 0.009 |
+| nominal | WCV + tau_mod 20 s + heading | 0.7% [0.5, 0.9] | 0.5% [0.3, 0.7] | -0.20 pts [-0.32, -0.10] | 0 / 12 | 0.00049 |
+| nominal | WCV + tau_mod 20 s + vertical | 0.6% [0.4, 0.8] | 0.3% [0.2, 0.5] | -0.28 pts [-0.43, -0.17] | 0 / 17 | 1.5e-05 |
+| degraded | WCV + heading | 3.5% [3.1, 4.0] | 3.3% [2.9, 3.8] | -0.23 pts [-0.37, -0.12] | 0 / 14 | 0.00012 |
+| degraded | WCV + vertical | 3.5% [3.1, 4.0] | 3.5% [3.0, 4.0] | -0.07 pts [-0.30, +0.17] | 21 / 25 | 0.66 |
+| degraded | WCV + tau_mod 20 s + heading | 3.0% [2.6, 3.5] | 2.8% [2.4, 3.2] | -0.27 pts [-0.42, -0.13] | 2 / 18 | 0.0004 |
+| degraded | WCV + tau_mod 20 s + vertical | 2.7% [2.4, 3.2] | 2.5% [2.2, 3.0] | -0.18 pts [-0.28, -0.08] | 0 / 11 | 0.00098 |
 
 ### 6. Pilot/automation response delay (WCV alerting, nominal surveillance)
 
 | policy | delay 0 s: LoWC | delay 5 s: LoWC | delay 10 s: LoWC | delay 15 s: LoWC | delay 20 s: LoWC |
 |---|---|---|---|---|---|
-| heading | 0.2% [0.2, 0.4] | 0.7% [0.5, 0.9] | 1.2% [1.0, 1.5] | 1.7% [1.4, 2.1] | 3.6% [3.2, 4.1] |
-| vertical | 0.3% [0.2, 0.5] | 1.1% [0.9, 1.4] | 1.6% [1.3, 2.0] | 2.6% [2.2, 3.0] | 8.1% [7.4, 8.8] |
+| heading | 0.2% [0.1, 0.3] | 0.7% [0.5, 0.9] | 1.1% [0.9, 1.5] | 1.7% [1.4, 2.0] | 3.4% [2.9, 3.8] |
+| vertical | 0.2% [0.1, 0.4] | 0.8% [0.6, 1.0] | 1.2% [0.9, 1.5] | 2.2% [1.9, 2.6] | 7.4% [6.7, 8.1] |
 
 ### 7. Where it fails
 
@@ -264,59 +284,60 @@ Missed-or-late alerts (open loop, nominal, filtered), counted by mechanism. Labe
 
 | strategy | total | no_alert_before_loss | alert_but_late | tcpa_beyond_T_at_required_time | vertical_outside_Dv_at_cpa | intruder_turned | drone_intruder |
 |---|---|---|---|---|---|---|---|
-| CPA thresholds | 260 | 17 | 243 | 60 | 73 | 84 | 96 |
-| WCV | 157 | 2 | 155 | 11 | 40 | 75 | 83 |
-| WCV + tau_mod 20 s | 123 | 2 | 121 | 10 | 25 | 66 | 59 |
+| CPA thresholds | 269 | 20 | 249 | 65 | 65 | 85 | 95 |
+| WCV | 172 | 0 | 172 | 7 | 45 | 66 | 81 |
+| WCV + tau_mod 20 s | 142 | 0 | 142 | 7 | 36 | 62 | 57 |
 
 Missed-or-late rate by encounter class (open loop, nominal, filtered):
 
 | class | CPA thresholds | WCV | WCV + tau_mod 20 s |
 |---|---|---|---|
-| geometry=head_on | 10.2% [7.4, 13.9] (n=334) | 9.3% [6.6, 12.9] (n=334) | 7.5% [5.1, 10.8] (n=334) |
-| geometry=crossing | 12.3% [9.4, 15.9] (n=391) | 11.3% [8.5, 14.8] (n=391) | 8.7% [6.3, 11.9] (n=391) |
-| geometry=overtaking | 43.0% [37.1, 49.1] (n=258) | 18.6% [14.3, 23.8] (n=258) | 15.5% [11.6, 20.4] (n=258) |
-| geometry=vertical | 25.2% [20.3, 30.7] (n=266) | 12.8% [9.3, 17.3] (n=266) | 9.0% [6.1, 13.1] (n=266) |
-| intruder=evtol | 20.5% [16.7, 24.9] (n=370) | 7.8% [5.5, 11.0] (n=370) | 6.5% [4.4, 9.5] (n=370) |
-| intruder=drone | 20.3% [16.9, 24.1] (n=474) | 17.5% [14.4, 21.2] (n=474) | 12.4% [9.8, 15.7] (n=474) |
-| intruder=ga | 21.7% [18.0, 26.0] (n=405) | 11.1% [8.4, 14.5] (n=405) | 9.9% [7.3, 13.2] (n=405) |
-| intruder_turn=straight | 17.1% [14.9, 19.5] (n=1031) | 8.0% [6.5, 9.8] (n=1031) | 5.5% [4.3, 7.1] (n=1031) |
-| intruder_turn=turning | 38.5% [32.3, 45.1] (n=218) | 34.4% [28.4, 40.9] (n=218) | 30.3% [24.6, 36.7] (n=218) |
+| geometry=head_on | 13.9% [10.8, 17.9] (n=366) | 12.6% [9.6, 16.4] (n=366) | 9.8% [7.2, 13.3] (n=366) |
+| geometry=crossing | 12.2% [9.4, 15.6] (n=435) | 11.3% [8.6, 14.6] (n=435) | 9.0% [6.6, 12.0] (n=435) |
+| geometry=overtaking | 45.0% [39.2, 50.8] (n=278) | 20.9% [16.5, 26.0] (n=278) | 18.0% [13.9, 22.9] (n=278) |
+| geometry=vertical | 20.9% [15.8, 27.3] (n=191) | 9.9% [6.5, 15.0] (n=191) | 8.9% [5.6, 13.8] (n=191) |
+| intruder=evtol | 19.1% [15.4, 23.4] (n=377) | 9.8% [7.2, 13.2] (n=377) | 9.5% [7.0, 12.9] (n=377) |
+| intruder=drone | 19.8% [16.5, 23.6] (n=480) | 16.9% [13.8, 20.5] (n=480) | 11.9% [9.3, 15.1] (n=480) |
+| intruder=ga | 24.7% [20.8, 29.1] (n=413) | 13.1% [10.2, 16.7] (n=413) | 11.9% [9.1, 15.3] (n=413) |
+| intruder_turn=straight | 17.6% [15.4, 20.0] (n=1047) | 10.1% [8.4, 12.1] (n=1047) | 7.6% [6.2, 9.4] (n=1047) |
+| intruder_turn=turning | 38.1% [32.0, 44.6] (n=223) | 29.6% [24.0, 35.9] (n=223) | 27.8% [22.3, 34.0] (n=223) |
 
 Residual losses of well clear with avoidance, labelled (labels overlap; `results/fail_cases.csv` lists every case with its encounter index):
 
 | surveillance | alerting + policy | n_lowc | no_or_late_alert | no_conflict_free_candidate | intruder_turned | floor_or_ceiling_limited | drone_intruder | unmitigated_not_hazardous | none_of_first_four |
 |---|---|---|---|---|---|---|---|---|---|
-| nominal | CPA thresholds + heading | 84 | 60 | 79 | 53 | 4 | 16 | 2 | 0 |
-| nominal | CPA thresholds + vertical | 212 | 90 | 203 | 63 | 102 | 75 | 2 | 4 |
-| nominal | CPA thresholds + combined | 74 | 58 | 68 | 46 | 7 | 14 | 3 | 1 |
-| nominal | WCV + heading | 40 | 25 | 39 | 39 | 3 | 5 | 1 | 0 |
-| nominal | WCV + vertical | 65 | 24 | 64 | 32 | 32 | 32 | 1 | 0 |
-| nominal | WCV + combined | 32 | 25 | 31 | 31 | 2 | 4 | 2 | 0 |
-| nominal | WCV + tau_mod 20 s + heading | 36 | 22 | 34 | 36 | 2 | 4 | 2 | 0 |
-| nominal | WCV + tau_mod 20 s + vertical | 32 | 22 | 30 | 27 | 7 | 10 | 2 | 0 |
-| nominal | WCV + tau_mod 20 s + combined | 27 | 22 | 26 | 27 | 1 | 3 | 5 | 0 |
-| degraded | CPA thresholds + heading | 222 | 190 | 170 | 75 | 9 | 173 | 10 | 2 |
-| degraded | CPA thresholds + vertical | 393 | 243 | 343 | 101 | 114 | 239 | 20 | 5 |
-| degraded | CPA thresholds + combined | 214 | 188 | 166 | 73 | 11 | 168 | 12 | 0 |
-| degraded | WCV + heading | 197 | 165 | 145 | 68 | 7 | 165 | 11 | 3 |
-| degraded | WCV + vertical | 220 | 164 | 170 | 66 | 35 | 182 | 11 | 7 |
-| degraded | WCV + combined | 191 | 163 | 139 | 65 | 8 | 163 | 14 | 2 |
-| degraded | WCV + tau_mod 20 s + heading | 181 | 152 | 133 | 59 | 8 | 155 | 11 | 6 |
-| degraded | WCV + tau_mod 20 s + vertical | 195 | 152 | 148 | 64 | 22 | 163 | 12 | 7 |
-| degraded | WCV + tau_mod 20 s + combined | 176 | 152 | 127 | 54 | 8 | 155 | 13 | 6 |
+| nominal | CPA thresholds + heading | 80 | 57 | 68 | 53 | 7 | 26 | 3 | 0 |
+| nominal | CPA thresholds + vertical | 192 | 95 | 180 | 51 | 87 | 74 | 0 | 2 |
+| nominal | CPA thresholds + combined | 71 | 56 | 61 | 46 | 7 | 22 | 2 | 0 |
+| nominal | WCV + heading | 42 | 18 | 39 | 40 | 3 | 9 | 5 | 0 |
+| nominal | WCV + vertical | 46 | 19 | 46 | 25 | 21 | 21 | 1 | 0 |
+| nominal | WCV + combined | 29 | 18 | 29 | 27 | 2 | 6 | 5 | 0 |
+| nominal | WCV + tau_mod 20 s + heading | 28 | 14 | 27 | 27 | 1 | 5 | 1 | 0 |
+| nominal | WCV + tau_mod 20 s + vertical | 19 | 14 | 19 | 16 | 4 | 4 | 0 | 0 |
+| nominal | WCV + tau_mod 20 s + combined | 19 | 14 | 19 | 18 | 0 | 2 | 5 | 0 |
+| degraded | CPA thresholds + heading | 252 | 209 | 192 | 100 | 11 | 197 | 15 | 8 |
+| degraded | CPA thresholds + vertical | 394 | 245 | 343 | 106 | 101 | 259 | 9 | 2 |
+| degraded | CPA thresholds + combined | 234 | 202 | 175 | 87 | 14 | 189 | 13 | 6 |
+| degraded | WCV + heading | 197 | 164 | 139 | 72 | 10 | 166 | 9 | 6 |
+| degraded | WCV + vertical | 208 | 165 | 155 | 62 | 29 | 180 | 8 | 2 |
+| degraded | WCV + combined | 186 | 163 | 126 | 63 | 12 | 165 | 11 | 5 |
+| degraded | WCV + tau_mod 20 s + heading | 165 | 143 | 121 | 55 | 12 | 139 | 5 | 2 |
+| degraded | WCV + tau_mod 20 s + vertical | 153 | 146 | 113 | 42 | 16 | 139 | 3 | 0 |
+| degraded | WCV + tau_mod 20 s + combined | 157 | 144 | 114 | 47 | 13 | 140 | 10 | 2 |
 
-### 8. Test-suite mutation check
+### 8. Historical test-suite mutation check
 
-`scripts/mutation_check.py` planted 25 deliberate bugs, one at a time, in fresh copies of the repository; the test suite failed on 25 of 25. The unmutated copy passed first (58 passed in 19.14s).
+`scripts/mutation_check.py` planted 29 deliberate bugs, one at a time, in fresh copies of the repository; tests detected 29 of 29. The unmutated copy passed first (236 passed in 59.44s).
+Every case must compile the C++ core before pytest. Collection, setup, compiler, timeout and skipped-test outcomes invalidate the run rather than count as detections. The report retains per-case failure evidence and full logs/JUnit files.
 
-The first run caught 24 of 25; the survivor (C++ CPA time boundary < instead of <=) showed that no test hit an exact threshold boundary, so boundary cases (tcpa == T, hmd == Dh, |vmd| == Dv) were added to the Python and C++ tests before the run below.
+The archived initial implementation's first run caught 24 of 25; the survivor (C++ CPA time boundary < instead of <=) led to exact-threshold tests. That file is historical evidence, not a rerun of the current source or current mutation harness.
 
 | # | file | planted bug | result |
 |---|---|---|---|
 | 0 | `daa/geometry.py` | scalar tcpa sign flipped | caught |
 | 1 | `daa/geometry.py` | vectorised CPA not clamped to t >= 0 | caught |
 | 2 | `daa/geometry.py` | scalar circle exit uses wrong root | caught |
-| 3 | `daa/geometry.py` | vectorised tau_mod coefficient sign | caught |
+| 3 | `daa/geometry.py` | vectorised tau_mod entry sign | caught |
 | 4 | `daa/geometry.py` | vectorised vertical interval bound | caught |
 | 5 | `daa/geometry.py` | lookahead time ignored | caught |
 | 6 | `daa/geometry.py` | CPA time threshold doubled (vectorised) | caught |
@@ -338,6 +359,10 @@ The first run caught 24 of 25; the survivor (C++ CPA time boundary < instead of 
 | 22 | `cpp/daa_core.hpp` | C++ circle exit perturbed by 1e-9 | caught |
 | 23 | `cpp/daa_core.hpp` | C++ tier off by one | caught |
 | 24 | `cpp/daa_core.hpp` | C++ CPA time boundary < instead of <= | caught |
+| 25 | `daa/sensors.py` | noncooperative initial velocity leaks future report | caught |
+| 26 | `daa/sim.py` | emergency chooses cheapest clear instead of maximum separation | caught |
+| 27 | `daa/encounters.py` | generator altitude check stops before full horizon | caught |
+| 28 | `daa/metrics.py` | paired metrics accept unequal input lengths | caught |
 
 ![SOC curve](docs/soc_curve.png)
 
@@ -351,41 +376,53 @@ These statements refer to the tables above and hold for this synthetic setup onl
 1. At the default thresholds, both WCV logics give fewer missed-or-late alerts than the CPA
    logic on the same encounters, and more nuisance alerts (tables 1 and 3). Sweeping the
    alert time, the WCV logics have the lower missed-or-late rate at every nuisance cap in the
-   matched-nuisance table; scaling the distance thresholds down to a 10% nuisance cap, the
-   CPA logic is not worse (intervals overlap). The WCV advantage here is mostly about alert
-   timing, not a uniformly better trade-off.
-2. The CPA logic fails mainly in overtaking and vertical-converging encounters (section 7):
-   in slow overtakes the time to CPA stays above the alert time while well clear is about to
-   be lost, and in vertical geometries the vertical separation at the horizontal CPA is not
-   the separation at the time of loss.
-3. For both WCV logics, encounters in which the intruder makes an unannounced turn have the
+   matched-nuisance table. In the distance-scale sweep at a 10% nuisance cap, however,
+   CPA has the lowest missed-or-late point estimate (29.1%, versus 32.1% for WCV and
+   36.9% for WCV + tau_mod). These are selected sweep points, not a paired non-inferiority
+   test. WCV does not have a uniformly better trade-off over all parameter choices.
+2. In the nominal filtered breakdown, CPA has its highest missed-or-late rate in overtaking
+   encounters (45.0%); the vertical class is also challenging (20.9%). Rates and counts
+   differ: the smaller vertical class contributes 40 cases, versus 51 head-on and 53 crossing.
+   The mechanism flags show both time-to-CPA staying beyond the alert horizon and predicted
+   vertical separation at horizontal CPA outside the vertical threshold; those flags can overlap.
+3. For both WCV logics in the nominal filtered breakdown, encounters in which the intruder
+   makes an unannounced turn have the
    highest missed-or-late rate of any class, several times the rate with straight-flying
    intruders; every logic here extrapolates straight lines.
 4. The alert metric matters. Raw alerts flicker under noise and report loss; crediting the
    first alert makes every logic look much better than counting from the alert episode that
-   is actually running when well clear is lost (table 2). The 2-of-4 raise / 5-cycle hold
+   is active at, or started most recently before, loss of well clear (table 2).
+   The 2-of-4 raise / 5-cycle hold
    filter lowered both missed-or-late and nuisance rates for every logic in all three
    surveillance conditions.
-5. Every avoidance policy cut loss of well clear to a small fraction of the no-manoeuvre
-   rate. Vertical-only avoidance was worse than heading-only in both surveillance conditions
-   (paired test), and in many of its residual failures the 150-600 m altitude band changed
-   the planner's decision. Combined heading and altitude was at least as good as heading only.
-6. With a one-shot manoeuvre, the earliest-alerting logic (WCV + tau_mod) had more residual
-   losses than WCV in all four pairs shown in section 5; re-checking the manoeuvre every 5 s
-   reduced residual losses in all eight configurations tested. Earlier alerts only paid off
-   once the manoeuvre was re-checked against newer tracks.
-7. Residual losses grow with response delay, most steeply between 15 and 20 s, and vertical
-   avoidance is more sensitive to delay than heading avoidance (section 6).
-8. Under degraded surveillance most residual losses involve non-cooperative drones, which
-   have the noisiest tracks.
+5. Every tested avoidance configuration has fewer losses than the no-manoeuvre baseline.
+   Policy ranking depends on alert logic: with WCV, vertical versus heading losses are
+   46 versus 42 under nominal surveillance and 208 versus 197 under degraded surveillance;
+   the paired differences are inconclusive (McNemar p=0.665 and 0.235; both difference
+   intervals cross zero). With WCV + tau_mod, vertical has fewer losses than heading in
+   both conditions. WCV combined has fewer losses than WCV heading in both conditions
+   (section 4); this does not establish a universal best policy.
+6. With a one-shot manoeuvre, WCV + tau_mod has fewer residual losses than WCV in all four
+   condition/policy pairs in section 5. Re-checking every 5 s lowers the observed count
+   in all eight configurations, but the improvement is not uniformly supported by the
+   paired tests: degraded WCV vertical changes from 212 to 208, with p=0.659 and a
+   difference interval crossing zero. The earlier-alerting WCV + tau_mod also has lower
+   observed losses in these one-shot comparisons.
+7. In the nominal-surveillance WCV delay sweep, residual losses grow with response delay,
+   most steeply between 15 and 20 s. Vertical avoidance is more sensitive to delay than
+   heading avoidance over these tested settings (section 6).
+8. In each degraded-surveillance configuration, most residual losses involve
+   non-cooperative drones. The sensor model assigns them noisier, position-only reports;
+   this association is not an isolated causal estimate of sensor quality.
 
 ## Limitations
 
 - Synthetic encounters. The mix of geometries, miss distances and intruder types is chosen,
   not measured, and every rate above depends on it. The rates are useful for comparing
   logics on the same encounters, not as estimates of real-world risk.
-- Rejection sampling (intruder altitude limits) removes many steep vertical encounters, so
-  the vertical class is the smallest and has fewer climbing than descending intruders.
+- Rejection sampling (nominal intruder altitude limits over the full horizon) removes many
+  steep vertical encounters. The vertical class is the smallest (874 of 6000); no claim
+  about real traffic composition follows from this constructed sample.
 - Loss of well clear without avoidance defines "hazardous"; an encounter that stays just
   outside the volume counts as non-hazardous, so a well-timed alert on it counts as nuisance.
 - Performance, noise, gust and dropout values are assumptions (see table). No aircraft or
@@ -406,10 +443,39 @@ These statements refer to the tables above and hold for this synthetic setup onl
 pip install -r requirements.txt
 python -m pytest -q                      # needs g++, clang++ or MSVC for the C++ agreement tests
 python scripts/run_eval.py               # writes results/ and docs/
+python scripts/mutation_check.py         # optional, runs an unmutated control then each deliberate bug
 python scripts/make_readme.py            # refresh the results section
 python scripts/make_readme.py --check    # fails if README and results disagree
-python scripts/mutation_check.py         # optional, about 10 minutes
 ```
 
-The `.github/workflows/ci.yml` workflow builds the C++ with g++ on Ubuntu, runs the tests with
-`DAA_REQUIRE_CPP=1` (so the agreement tests cannot be skipped) and runs the README check.
+The `.github/workflows/ci.yml` workflow builds C++ on Ubuntu and Windows, runs the tests with
+`DAA_REQUIRE_CPP=1` (so the agreement tests cannot be skipped) and checks the generated
+README results block. A real compiler regression builds and runs the core from paths
+containing Unicode, spaces and shell characters; Windows explicitly exercises MSVC.
+The hand-written Findings and Limitations require separate review after an evaluation.
+
+The published [mutation report](results/mutation_report.json) links each case to its own
+compile log, pytest log and JUnit record in [mutation_evidence.zip](results/mutation_evidence.zip).
+Extract the archive beside the report to resolve those relative paths. The report includes
+the exact source/test/config and archive-member hashes used for this gate; local reruns
+retain their evidence in a separate `*_artifacts/run_*` directory.
+
+The October 2026 reliability review fixes tangency cancellation, future-report leakage
+at tracker initialisation, emergency candidate selection, full-horizon altitude screening,
+paired-input validation and Unicode MSVC builds. The results above were rerun with all
+6000 encounters after those fixes, using the pinned requirements, at source commit
+`0e8566360e02e7d2c5afb45018578ea80c05f13a`. Those results are now archived and do not
+evaluate the current altitude-constrained controller. Earlier historical results remain
+in commit `3162ee8874f53e9970e1bfe4b4a8fdab32b2a3b7`. Changed sampling eligibility changes
+the accepted encounters and later random draws; old/new encounter indices must not be
+paired, even though the seed is the same. The historical run also used NumPy 1.24.3,
+whereas this run uses 1.26.4, so aggregate changes are not isolated algorithm gains.
+
+`python scripts/check_archived_results.py` checks these frozen bytes and their original
+evaluation/mutation source hashes from that fixed commit. CI treats this historical audit
+separately from current-controller tests; a pass does not certify new benchmark results.
+
+`summary.json` records the runtime source/config SHA-256 values (raw checkout bytes,
+including line endings). The evaluator rejects a source change during the calculation
+before publishing its outputs. `--n` must be a positive integer; use explicit `--out` and
+`--docs` directories to preserve a prior evaluation while running another one.

@@ -64,6 +64,7 @@ def test_wcv_interval_agrees(cpp_cli, TTHR):
     T = rng.uniform(0, 120, len(s))
     lines = [_vec(a, b) + f" {D[i]!r} {Z[i]!r} {TTHR!r} {T[i]!r}" for i, (a, b) in enumerate(zip(s, v))]
     out = _run(cpp_cli, ["wcv"], lines)
+    assert len(out) == len(lines)
     hits = 0
     maxdiff = 0.0
     for i, line in enumerate(out):

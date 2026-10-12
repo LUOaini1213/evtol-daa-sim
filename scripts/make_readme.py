@@ -39,18 +39,21 @@ def table(header, rows):
 
 
 def render_mutation(mut):
-    L = ["### 8. Test-suite mutation check", ""]
+    L = ["### 8. Historical test-suite mutation check", ""]
     L.append(f"`scripts/mutation_check.py` planted {mut['total']} deliberate bugs, one at a time, in fresh "
-             f"copies of the repository; the test suite failed on {mut['caught']} of {mut['total']}. "
+             f"copies of the repository; tests detected {mut['caught']} of {mut['total']}. "
              f"The unmutated copy passed first ({mut['baseline']['summary']}).")
+    if mut.get("cpp_required"):
+        L.append("Every case must compile the C++ core before pytest. Collection, setup, compiler, "
+                 "timeout and skipped-test outcomes invalidate the run rather than count as detections. "
+                 "The report retains per-case failure evidence and full logs/JUnit files.")
     L.append("")
     first = mut.get("_first_run")
     if first:
         surv = [m["description"] for m in first["mutants"] if not m["caught"]]
-        L.append(f"The first run caught {first['caught']} of {first['total']}; the survivor "
-                 f"({'; '.join(surv) or 'none'}) showed that no test hit an exact threshold boundary, so "
-                 "boundary cases (tcpa == T, hmd == Dh, |vmd| == Dv) were added to the Python and C++ "
-                 "tests before the run below.")
+        L.append(f"The archived initial implementation's first run caught {first['caught']} of {first['total']}; "
+                 f"the survivor ({'; '.join(surv) or 'none'}) led to exact-threshold tests. "
+                 "That file is historical evidence, not a rerun of the current source or current mutation harness.")
         L.append("")
     rows = [[m["index"], f"`{m['file']}`", m["description"], "caught" if m["caught"] else "SURVIVED"]
             for m in mut["mutants"]]
@@ -61,7 +64,12 @@ def render_mutation(mut):
 def render(res):
     m = res["meta"]
     L = []
-    L.append(f"All numbers below are produced by `scripts/run_eval.py` (seed {m['seed']}, "
+    L.append("These are preserved historical evaluations of [source commit "
+             "`0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a). "
+             "They do not evaluate the current altitude-constrained controller. No new 6,000-encounter evaluation "
+             "or full mutation gate is claimed for that controller; see [the local regression scope](docs/ALTITUDE_CONSTRAINTS.md).")
+    L.append("")
+    L.append(f"Historical numbers below were produced by that version of `scripts/run_eval.py` (seed {m['seed']}, "
              f"{m['n']} encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% "
              "Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.")
     L.append("")
@@ -78,7 +86,8 @@ def render(res):
              f"{cnt(m['nmac_unmitigated'])} = {pct(m['nmac_unmitigated'])} reach NMAC. "
              f"Surveillance report loss: nominal {100 * m['report_loss_fraction']['nominal']:.1f}%, "
              f"degraded {100 * m['report_loss_fraction']['degraded']:.1f}%. "
-             f"Evaluation run time: {m['runtime_s']:.0f} s (Python {m['python']}, numpy {m['numpy']}).")
+             f"Simulation and analysis time, excluding exports/plots: {m['runtime_s']:.0f} s "
+             f"(Python {m['python']}, numpy {m['numpy']}).")
     L.append("")
 
     ol = {(r["condition"], r["strategy"], r["filter"]): r for r in res["open_loop"]}

@@ -111,15 +111,19 @@ def test_response_delay_is_respected(cfg, small):
     enc, tr = small
     d = 10.0
     r = sim.closed_loop(enc, tr, "wcv", al.tier_params(cfg, "wcv"), "heading", cfg, response_delay=d)
-    step = np.diff(r.own_pos, axis=1) - enc.own_w
-    hdg = np.degrees(np.arctan2(step[..., 1], step[..., 0]))
+    step = np.diff(r.own_pos, axis=1) / enc.dt - enc.own_w
+    initial = np.stack([enc.own_speed * np.cos(enc.own_psi),
+                        enc.own_speed * np.sin(enc.own_psi), np.zeros(enc.n)], -1)
+    change = np.linalg.norm(step - initial[:, None, :], axis=-1)
     idx = np.flatnonzero(r.manoeuvred)
     assert idx.size > 10
     for i in idx:
         k0 = int(r.first_plan_t[i] / enc.dt)
-        # command applied at k0+d; heading first changes over the step after that
-        assert np.abs(hdg[i, : k0 + int(d) + 1]).max() < 1e-6
-        assert np.abs(hdg[i, k0 + int(d) + 1:]).max() > 1.0
+        # All command components wait for the delay. An emergency may climb or slow
+        # without turning; flown velocity first changes on the following Euler step.
+        first_changed_step = k0 + int(round(d / enc.dt)) + 1
+        assert change[i, :first_changed_step].max() < 1e-6
+        assert change[i, first_changed_step:].max() > 1.0
 
 
 def test_replan_keeps_clear_manoeuvre(cfg):

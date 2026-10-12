@@ -34,6 +34,9 @@ def tier_params(cfg, strategy):
 
 def condition(strategy, s, v, D, Z, T, TTHR=0.0):
     """Boolean alert condition of one tier (vectorised)."""
+    if strategy not in STRATEGIES:
+        raise ValueError(f"unknown alert strategy: {strategy}")
+    TTHR = g._parameter(TTHR, "TTHR")
     if strategy == "cpa":
         return g.cpa_condition(s, v, D, Z, T)
     hit, _, _ = g.wcv_interval(s, v, D, Z, TTHR, T)
@@ -42,22 +45,28 @@ def condition(strategy, s, v, D, Z, T, TTHR=0.0):
 
 def alert_level(strategy, s, v, tiers):
     """Vectorised tiered alert level for relative states s, v [..., 3]."""
-    s = np.asarray(s, dtype=float)
+    if strategy not in STRATEGIES:
+        raise ValueError(f"unknown alert strategy: {strategy}")
+    s, v = g._state_array(s), g._state_array(v)
     level = np.zeros(s.shape[:-1], dtype=np.int8)
     for i, t in enumerate(tiers, start=1):
-        hit = condition(strategy, s, v, t["D"], t["Z"], t["T"], t["TTHR"] or 0.0)
+        hit = condition(strategy, s, v, t["D"], t["Z"], t["T"], 0.0 if t["TTHR"] is None else t["TTHR"])
         level = np.where(hit, np.int8(i), level)
     return level
 
 
 def alert_level_scalar(strategy, s, v, tiers):
     """Scalar reference used for cross-checking against C++."""
+    if strategy not in STRATEGIES:
+        raise ValueError(f"unknown alert strategy: {strategy}")
+    s, v = g._scalar_state(s), g._scalar_state(v)
     level = 0
     for i, t in enumerate(tiers, start=1):
+        tau = g._parameter(0.0 if t["TTHR"] is None else t["TTHR"], "TTHR", scalar=True)
         if strategy == "cpa":
             hit = g.cpa_condition_scalar(s, v, t["D"], t["Z"], t["T"])
         else:
-            hit = g.wcv_interval_scalar(s, v, t["D"], t["Z"], t["TTHR"] or 0.0, t["T"]) is not None
+            hit = g.wcv_interval_scalar(s, v, t["D"], t["Z"], tau, t["T"]) is not None
         if hit:
             level = i
     return level

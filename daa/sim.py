@@ -30,6 +30,7 @@ G0 = 9.80665
 K_Z = 0.5  # 1/s altitude-capture gain (assumption)
 POLICIES = ("none", "heading", "vertical", "combined")
 REPLAN_PERIOD = 5  # cycles between re-checks of a committed manoeuvre (assumption)
+ALTITUDE_EPS = 1e-9  # metres/vertical-rate round-off, not an operating tolerance
 
 
 def wrap(a):
@@ -40,9 +41,53 @@ def turn_rate(V, bank_deg):
     return G0 * np.tan(np.radians(bank_deg)) / np.maximum(V, 1.0)
 
 
-def step_dynamics(psi, V, vz, znom, psi_cmd, V_cmd, z_tgt, perf, dt):
+def _braking_rate(headroom, acceleration, dt):
+    """Largest rate stoppable inside headroom with this explicit-Euler order.
+
+    A rate q flies one full step before its next acceleration applies. With
+    delta=a*dt and n positive steps, distance=dt*(n*q-delta*n*(n-1)/2).
+    Inverting the triangular breakpoints avoids a continuous-time braking
+    approximation that would omit the first held-velocity step.
+    """
+    delta = acceleration * dt
+    distance = np.maximum(headroom, 0.0) / dt
+    n = np.maximum(1.0, np.ceil((np.sqrt(1.0 + 8.0 * distance / delta) - 1.0) / 2.0))
+    return (distance + delta * n * (n - 1.0) / 2.0) / n
+
+
+def _bounded_vertical_rate(vz, requested, z, z_next, perf, dt, band):
+    """Constrain commanded altitude without moving it or exceeding acceleration.
+
+    The OU gust remains an unbounded external disturbance on truth position.
+    This guard certifies the commanded Euler path, not unknown future gusts.
+    """
+    floor, ceiling = np.asarray(band, dtype=float)
+    a, vmax = float(perf["a_z"]), float(perf["vz_max"])
+    vz, requested, z, z_next = (np.asarray(value, dtype=float) for value in (vz, requested, z, z_next))
+    if (not np.isfinite([floor, ceiling, a, vmax, dt]).all() or floor >= ceiling
+            or a <= 0 or vmax <= 0 or dt <= 0):
+        raise ValueError("altitude band and dynamics must be finite, ordered and positive")
+    if (not np.isfinite(z).all() or not np.isfinite(z_next).all() or not np.isfinite(vz).all()
+            or not np.isfinite(requested).all()
+            or np.any(z < floor - ALTITUDE_EPS) or np.any(z > ceiling + ALTITUDE_EPS)
+            or np.any(z_next < floor - ALTITUDE_EPS) or np.any(z_next > ceiling + ALTITUDE_EPS)):
+        raise ValueError("altitude state/held-velocity step is infeasible within the band")
+    lower = np.maximum.reduce([vz - a * dt, np.full_like(vz, -vmax),
+                              -_braking_rate(z_next - floor, a, dt)])
+    upper = np.minimum.reduce([vz + a * dt, np.full_like(vz, vmax),
+                              _braking_rate(ceiling - z_next, a, dt)])
+    if np.any(lower > upper + ALTITUDE_EPS):
+        raise ValueError("altitude state cannot brake inside the band within acceleration limits")
+    result = np.clip(requested, lower, np.maximum(upper, lower))
+    return result, np.abs(result - requested) > ALTITUDE_EPS
+
+
+def step_dynamics(psi, V, vz, znom, psi_cmd, V_cmd, z_tgt, perf, dt, *,
+                  altitude_band=None, return_limited=False):
     """Advance ownship commanded state one step. Returns new state and the
     velocity flown during the step (state at the start of the step)."""
+    if altitude_band is not None and (not np.isfinite(dt) or dt <= 0):
+        raise ValueError("bounded altitude step requires a finite positive dt")
     vel = np.stack([V * np.cos(psi), V * np.sin(psi), vz], -1)
     om = turn_rate(V, perf["bank_max_deg"]) * dt
     psi_n = psi + np.clip(wrap(psi_cmd - psi), -om, om)
@@ -50,7 +95,11 @@ def step_dynamics(psi, V, vz, znom, psi_cmd, V_cmd, z_tgt, perf, dt):
     vz_cmd = np.clip(K_Z * (z_tgt - znom), -perf["vz_max"], perf["vz_max"])
     vz_n = vz + np.clip(vz_cmd - vz, -perf["a_z"] * dt, perf["a_z"] * dt)
     znom_n = znom + vz * dt
-    return psi_n, V_n, vz_n, znom_n, vel
+    limited = np.zeros_like(vz_n, dtype=bool)
+    if altitude_band is not None:
+        vz_n, limited = _bounded_vertical_rate(vz, vz_n, znom, znom_n, perf, dt, altitude_band)
+    values = (psi_n, V_n, vz_n, znom_n, vel)
+    return values + (limited,) if return_limited else values
 
 
 # ------------------------------------------------------------ open loop ----
@@ -104,15 +153,20 @@ def candidate_set(kind, cfg):
     return np.radians(d), dz, slow, cost
 
 
-def _select(mmin, cost):
+def _select(mmin, cost, *, maximize=False, keep_current=False):
     """Cheapest candidate with predicted min separation ratio >= 1; if none,
-    the candidate with the largest ratio (cheapest among ties)."""
+    the candidate with the largest ratio (cheapest among ties). Emergency selection
+    maximizes the ratio even if a cheaper clear candidate exists. A clear current
+    command is retained during rechecks, as specified by the replanning policy."""
     free = mmin >= 1.0
     any_free = free.any(axis=1)
     pick_free = np.where(free, cost[None, :], np.inf).argmin(axis=1)
     best = mmin.max(axis=1, keepdims=True)
     pick_best = np.where(mmin >= best - 1e-9, cost[None, :], np.inf).argmin(axis=1)
-    return np.where(any_free, pick_free, pick_best), any_free
+    pick = pick_best if maximize else np.where(any_free, pick_free, pick_best)
+    if keep_current:
+        pick = np.where(free[:, 0], 0, pick)
+    return pick, any_free
 
 
 def plan(kind, cfg, psi, V, vz, znom, z_true, pos, cmd, p_int, v_int, delay_steps, include_current=False):
@@ -135,14 +189,16 @@ def plan(kind, cfg, psi, V, vz, znom, z_true, pos, cmd, p_int, v_int, delay_step
 
     tgt_psi = wrap(psi[:, None] + dpsi[None, :])
     tgt_z = znom[:, None] + dz[None, :]
-    feasible = (tgt_z >= sim["floor_m"]["value"]) & (tgt_z <= sim["ceiling_m"]["value"])
-    feasible |= (dz[None, :] == 0.0)
+    feasible = ((tgt_z >= sim["floor_m"]["value"] - ALTITUDE_EPS)
+                & (tgt_z <= sim["ceiling_m"]["value"] + ALTITUDE_EPS))
     tgt_V = np.where(slow[None, :], perf["v_min_emergency"], V[:, None])
     if include_current:
         tgt_psi = np.concatenate([cmd[0][:, None], tgt_psi], 1)
         tgt_V = np.concatenate([cmd[1][:, None], tgt_V], 1)
         tgt_z = np.concatenate([cmd[2][:, None], tgt_z], 1)
-        feasible = np.concatenate([np.ones((J, 1), bool), feasible], 1)
+        current_feasible = ((cmd[2] >= sim["floor_m"]["value"] - ALTITUDE_EPS)
+                            & (cmd[2] <= sim["ceiling_m"]["value"] + ALTITUDE_EPS))
+        feasible = np.concatenate([current_feasible[:, None], feasible], 1)
         dpsi, dz = np.concatenate([[0.0], dpsi]), np.concatenate([[0.0], dz])
         slow, cost = np.concatenate([[False], slow]), np.concatenate([[-1.0], cost])
         C += 1
@@ -153,23 +209,30 @@ def plan(kind, cfg, psi, V, vz, znom, z_true, pos, cmd, p_int, v_int, delay_step
     vzs = np.repeat(vz[:, None], C, 1)
     zn = np.repeat(znom[:, None], C, 1)
     mmin = np.full((J, C), np.inf)
+    band = (sim["floor_m"]["value"], sim["ceiling_m"]["value"])
+    band_limited = np.zeros((J, C), bool)
     for i in range(L):
         if i < delay_steps:
             pc, vc, zc = cmd[0][:, None], cmd[1][:, None], cmd[2][:, None]
         else:
             pc, vc, zc = tgt_psi, tgt_V, tgt_z
-        ps, Vs, vzs, zn, vel = step_dynamics(ps, Vs, vzs, zn, pc, vc, zc, perf, dt)
+        ps, Vs, vzs, zn, vel, limited_step = step_dynamics(
+            ps, Vs, vzs, zn, pc, vc, zc, perf, dt, altitude_band=band, return_limited=True)
+        band_limited |= limited_step
         P = P + vel * dt
         if i + 1 >= delay_steps:
             s = p_int[:, None, :] + v_int[:, None, :] * ((i + 1) * dt) - P
             m = np.maximum(np.hypot(s[..., 0], s[..., 1]) / Dp, np.abs(s[..., 2]) / Zp)
             mmin = np.minimum(mmin, m)
-    pick, any_free = _select(np.where(feasible, mmin, -np.inf), cost)
-    pick_unconstrained, _ = _select(mmin, cost)
-    # the altitude band changed the decision (a better candidate was out of the band)
-    limited = pick != pick_unconstrained
-    mmin = np.where(feasible, mmin, -np.inf)
+    objective = dict(maximize=kind == "emergency", keep_current=include_current)
+    if np.any(~feasible.any(axis=1)):
+        raise ValueError("no altitude-band-feasible candidate")
+    pick, any_free = _select(np.where(feasible, mmin, -np.inf), cost, **objective)
+    pick_unconstrained, _ = _select(mmin, cost, **objective)
     r = np.arange(J)
+    # Target exclusion or actual controller braking constrained this decision.
+    limited = (pick != pick_unconstrained) | band_limited[r, pick]
+    mmin = np.where(feasible, mmin, -np.inf)
     return dict(psi_cmd=tgt_psi[r, pick], V_cmd=tgt_V[r, pick], z_tgt=tgt_z[r, pick],
                 dpsi=dpsi[pick], dz=dz[pick], slow=slow[pick], free=any_free,
                 mmin=mmin[r, pick], limited=limited,
@@ -286,7 +349,10 @@ def closed_loop(enc, track, strategy, tiers, policy, cfg, filt=None, response_de
         if k == K1 - 1:
             break
         pos = pos + own_v * dt
-        psi, V, vz, znom, _ = step_dynamics(psi, V, vz, znom, cmd[0], cmd[1], cmd[2], perf, dt)
+        psi, V, vz, znom, _, bounded = step_dynamics(
+            psi, V, vz, znom, cmd[0], cmd[1], cmd[2], perf, dt,
+            altitude_band=(sim["floor_m"]["value"], sim["ceiling_m"]["value"]), return_limited=True)
+        floor_limited |= bounded
         own_pos[:, k + 1] = pos
         max_dpsi = np.maximum(max_dpsi, np.abs(np.degrees(wrap(psi - psi0))))
         max_dz = np.maximum(max_dz, np.abs(znom - z0))

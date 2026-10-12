@@ -1,6 +1,10 @@
 __pycache__/
+.venv/
 .pytest_cache/
 build/
 scratch_*.py
 *.obj
 *.exe
+# Local mutation runs; the published mutation_evidence.zip remains tracked.
+/results/mutation_report*_artifacts/
+/results/mutation_report.only-*.json
