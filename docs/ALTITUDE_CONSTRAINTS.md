@@ -1,10 +1,9 @@
-# Commanded altitude constraints and frozen historical evaluations
+# Commanded altitude constraints
 
-The published 6,000-encounter evaluation and 29-case mutation gate belong to
-[the original reliability-review source](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a).
-Their JSON, CSV, figures and mutation evidence remain unchanged. They do **not**
-evaluate the current altitude-constrained controller. No new Monte-Carlo run,
-aggregate improvement, render or flight-safety certification is claimed here.
+This note describes the correction that bounds the commanded altitude trajectory
+of the avoidance controller (merged in PR #1, commit `1c9dd54`). The README results
+are a fresh 6,000-encounter run of the controller with this correction. The
+previous run, made before it, is kept in [historical/](historical/README.md).
 
 ## The bounded correction
 
@@ -47,53 +46,27 @@ A regression explicitly leaves a 10 m/s vertical disturbance visible in truth,
 while commanded altitude stays 300 m. Future disturbance prediction and aircraft
 flight-control validation remain outside this software correction.
 
-## Verification and original-source audit
-
-Install the pinned `requirements.txt`, then run:
+## Verification
 
 ```sh
 python -m pytest -q
-python scripts/check_archived_results.py
 python scripts/make_readme.py --check
+python scripts/check_archived_results.py   # needs full Git history
 ```
 
 `tests/test_altitude_band.py` covers the original floor/ceiling examples, actual
 `plan` and `closed_loop` calls, the hand-computed braking boundary, rates,
 acceleration, dt, delayed/current commands, unchanged feasible controls and
-infeasible states. These are deterministic local controls, not a new encounter
-distribution or a claim about the archived 6,000 cases.
+infeasible states. Run against the pre-correction source, eight of these
+`closed_loop` controls gave six assertion failures (the dt=1 floor/ceiling
+trajectories with 0/5/10 s delays) and two passes (controls that were already
+feasible at dt=0.5).
 
-`docs/historical_evaluation.json` binds all eight historical artifacts to their
-fixed original commit. The audit checks the evaluation's nine original runtime
-source hashes, the mutation gate's 26 source/test/config hashes and all 90 ZIP
-evidence members. The two original runs used different mixed LF/CRLF checkout
-bytes. Their per-file policies reconstruct those **recorded raw bytes** from the
-original Git commit; the historical hashes are not rewritten. Current sources
-are compared separately, ignoring checkout line endings, so a passing historical
-audit cannot be mistaken for an evaluation of the new controller. CI fetches
-the original history and runs this audit separately from current-engine tests.
-The earlier first-run mutation report is byte-preserved only; its original
-runtime is not recertified by this audit. The local mutation copier excludes
-private virtual environments while retaining tested source directories.
-
-### Local validation receipt (not a completed required CI run)
-
-[The current receipt](altitude_constraints_review.json) records the source
-fingerprints and actual validation boundaries. The required-mode local suite
-had 286 passing cases and one setup error: this Windows host has no Visual
-Studio `vswhere`, required by the existing forced-MSVC Unicode-path test. That
-gate remains enabled. The final 42 controller and nine archive regressions
-passed after the extra target-eligibility test; the 22 mutation-runner controls
-also passed. These overlapping runs are not advertised as a full-suite pass.
-
-The eight identical public `closed_loop` controls against the original source
-produced six assertion failures (the dt=1 floor/ceiling trajectories with
-0/5/10 s delays) and two passes (already feasible dt=0.5 controls), with no setup
-errors. The archived runtime hashes were independently matched before this
-comparison. Current deterministic boundary captures stay at 150/600 m.
-
-An optional GCC Unicode/special-character path build also failed locally; it
-does not replace the protected MSVC check or ordinary Python/C++ agreement.
-The existing 29 product-mutation specifications were adapted to the new target
-floor expression, but no new 29-case product gate was run. The archived 29/29
-continues to describe only its fixed original source.
+CI runs the full suite with the C++ core required on Ubuntu and Windows; the
+merge commit of this correction passed
+([run 38206288076](https://github.com/LUOaini1213/evtol-daa-sim/actions/runs/38206288076)),
+as did the following commit
+([run 38419229475](https://github.com/LUOaini1213/evtol-daa-sim/actions/runs/38419229475)).
+The local receipt written before CI existed for this change is kept as
+[historical/altitude_constraints_review.json](historical/altitude_constraints_review.json).
+How the historical files are audited is described in [PROVENANCE.md](PROVENANCE.md).

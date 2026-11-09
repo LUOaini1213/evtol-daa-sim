@@ -1,0 +1,30 @@
+name: mutation-gate
+
+# Regenerates results/mutation_report.json and results/mutation_evidence.zip on a
+# clean Linux runner (about 25 min) and uploads them as an artifact. Commit the two
+# files, then run `python scripts/make_readme.py` and `--check`.
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/review-20261103]
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Mutation gate (control run, then each planted bug)
+        run: python scripts/mutation_check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-results
+          path: |
+            results/mutation_report.json
+            results/mutation_evidence.zip

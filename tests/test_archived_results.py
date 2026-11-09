@@ -27,9 +27,17 @@ def frozen(tmp_path):
         target = tmp_path / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(b"FIXTURE_SOURCE = 1\n")
+    # The evidence ZIP is audited from the source commit's Git object, not the tree.
+    members = {"mutation_evidence/log_" + str(i) + ".txt": b"controlled evidence " + str(i).encode() for i in range(90)}
+    archive = tmp_path / "results/mutation_evidence.zip"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive, "w") as zipped:
+        for name, content in members.items():
+            zipped.writestr(name, content)
+    archive_sha256 = audit.digest(archive.read_bytes())
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(tmp_path), "-c", "core.autocrlf=false", "add", *mutation],
-                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "core.autocrlf=false", "add", *mutation,
+                    "results/mutation_evidence.zip"], check=True, capture_output=True)
     subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=Audit fixture", "-c", "user.email=fixture@example.invalid",
                     "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Controlled source snapshot"],
                    check=True, capture_output=True, timeout=20)
@@ -42,25 +50,27 @@ def frozen(tmp_path):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"controlled historical artifact\n")
-    members = {"mutation_evidence/log_" + str(i) + ".txt": b"controlled evidence " + str(i).encode() for i in range(90)}
-    archive = tmp_path / "results/mutation_evidence.zip"
-    with zipfile.ZipFile(archive, "w") as zipped:
-        for name, content in members.items():
-            zipped.writestr(name, content)
-    rewrite(tmp_path, "results/summary.json", {"meta": {"n": 6000, "runtime_source_sha256": hashes["evaluation"]}})
-    rewrite(tmp_path, "results/mutation_report.json", {"source_test_config_sha256": hashes["mutation"],
-            "evidence_archive": archive.name, "evidence_archive_sha256": audit.digest(archive.read_bytes()),
+    archive.unlink()  # Only the committed Git object remains, as in the real repository.
+    rewrite(tmp_path, SUMMARY, {"meta": {"n": 6000, "runtime_source_sha256": hashes["evaluation"]}})
+    rewrite(tmp_path, REPORT, {"source_test_config_sha256": hashes["mutation"],
+            "evidence_archive": archive.name, "evidence_archive_sha256": archive_sha256,
             "evidence_member_sha256": {name: audit.digest(content) for name, content in members.items()}})
-    rewrite(tmp_path, audit.DEFAULT_MANIFEST, {"schema": 1, "source_commit": commit, "encounters": 6000,
+    rewrite(tmp_path, audit.DEFAULT_MANIFEST, {"schema": 2, "source_commit": commit, "encounters": 6000,
             "artifact_hash_policy": "SHA256; JSON/CSV CRLF normalized to LF; binary exact",
             "source_line_endings": policy,
+            "git_artifacts_sha256": {"results/mutation_evidence.zip": archive_sha256},
             "artifacts_sha256": {name: audit.artifact_digest(tmp_path / name) for name in audit.ARTIFACTS}})
     # An intentional new version is detected, but not mistaken for a new evaluation.
     (tmp_path / "daa/sim.py").write_bytes(b"FIXTURE_SOURCE = 2\n")
     return tmp_path
 
 
+SUMMARY = audit.HISTORICAL + "summary.json"
+REPORT = audit.HISTORICAL + "mutation_report.json"
+
+
 def rewrite(root, name, value):
+    (root / name).parent.mkdir(parents=True, exist_ok=True)
     (root / name).write_text(json.dumps(value), encoding="utf-8")
 
 
@@ -77,6 +87,7 @@ def test_frozen_old_source_passes_while_reporting_current_controller_is_differen
     assert result["current_runtime_difference_ignoring_checkout_line_endings"] == ["daa/sim.py"]
     assert (result["artifact_count"], result["evaluation_source_files"], result["mutation_source_files"],
             result["mutation_evidence_members"]) == (8, 9, 26, 90)
+    assert not (frozen / "results/mutation_evidence.zip").exists()
 
 
 def test_checkout_line_endings_do_not_change_archived_json_csv_identity(frozen):
@@ -87,7 +98,7 @@ def test_checkout_line_endings_do_not_change_archived_json_csv_identity(frozen):
     assert audit.verify(frozen)["passed"]
 
 
-@pytest.mark.parametrize("name", ["results/sweep.csv", "results/mutation_evidence.zip"])
+@pytest.mark.parametrize("name", [audit.HISTORICAL + "sweep.csv", audit.HISTORICAL + "soc_curve.png"])
 def test_altered_historical_data_or_evidence_is_rejected(frozen, name):
     with (frozen / name).open("ab") as stream:
         stream.write(b"changed")
@@ -96,7 +107,7 @@ def test_altered_historical_data_or_evidence_is_rejected(frozen, name):
 
 
 def test_source_fingerprint_cannot_be_replaced_by_current_source_identity(frozen):
-    name = "results/summary.json"
+    name = SUMMARY
     summary = json.loads((frozen / name).read_text(encoding="utf-8"))
     summary["meta"]["runtime_source_sha256"]["daa/sim.py"] = audit.digest((frozen / "daa/sim.py").read_bytes())
     rewrite(frozen, name, summary)
@@ -107,7 +118,7 @@ def test_source_fingerprint_cannot_be_replaced_by_current_source_identity(frozen
 
 def test_incomplete_identity_manifest_is_rejected(frozen):
     manifest = json.loads((frozen / audit.DEFAULT_MANIFEST).read_text(encoding="utf-8"))
-    manifest["artifacts_sha256"].pop("results/fail_cases.csv")
+    manifest["artifacts_sha256"].pop(audit.HISTORICAL + "fail_cases.csv")
     rewrite(frozen, audit.DEFAULT_MANIFEST, manifest)
     with pytest.raises(ValueError, match="artifact identity set is incomplete"):
         audit.verify(frozen)
@@ -130,11 +141,19 @@ def test_missing_original_commit_is_not_certified_by_current_source(frozen):
 
 
 def test_mutation_zip_member_hash_is_independently_checked(frozen):
-    name = "results/mutation_report.json"
+    name = REPORT
     report = json.loads((frozen / name).read_text(encoding="utf-8"))
     key = next(iter(report["evidence_member_sha256"]))
     report["evidence_member_sha256"][key] = "0" * 64
     rewrite(frozen, name, report)
     reanchor_fixture_artifact(frozen, name)
     with pytest.raises(ValueError, match="evidence member changed"):
+        audit.verify(frozen)
+
+
+def test_git_evidence_archive_hash_is_pinned_by_the_manifest(frozen):
+    manifest = json.loads((frozen / audit.DEFAULT_MANIFEST).read_text(encoding="utf-8"))
+    manifest["git_artifacts_sha256"]["results/mutation_evidence.zip"] = "0" * 64
+    rewrite(frozen, audit.DEFAULT_MANIFEST, manifest)
+    with pytest.raises(ValueError, match="evidence archive changed"):
         audit.verify(frozen)

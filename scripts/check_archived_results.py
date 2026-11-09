@@ -2,12 +2,17 @@
 
 Original raw-checkout source hashes are reconstructed with the recorded per-file
 LF/CRLF policy. This does not change any historical identity or rerun an encounter.
-Git history must contain the fixed source commit (CI uses fetch-depth: 0).
+Git history must contain the fixed source commit (CI uses fetch-depth: 0); after a
+shallow clone run `git fetch --unshallow` first. The frozen files live in
+docs/historical/0e85663/. The mutation evidence ZIP is read from the source commit's
+Git object rather than the working tree, because its logs carry absolute paths of
+the machine that ran that gate.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -16,11 +21,14 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MANIFEST = "docs/historical_evaluation.json"
+DEFAULT_MANIFEST = "docs/historical/manifest.json"
+HISTORICAL = "docs/historical/0e85663/"
 TEXT = {".json", ".csv"}
-ARTIFACTS = {"results/summary.json", "results/sweep.csv", "results/fail_cases.csv",
-             "results/mutation_report.json", "results/mutation_report_first_run.json",
-             "results/mutation_evidence.zip", "docs/soc_curve.png", "docs/lead_time_hist.png"}
+ARTIFACTS = {HISTORICAL + name for name in ("summary.json", "sweep.csv", "fail_cases.csv",
+             "mutation_report.json", "mutation_report_first_run.json", "soc_curve.png",
+             "lead_time_hist.png")}
+GIT_ARTIFACTS = {"results/mutation_evidence.zip"}
+UNSHALLOW = "; fetch original Git history (git fetch --unshallow)"
 
 
 def digest(data):
@@ -39,21 +47,31 @@ def artifact_digest(path):
     return digest(data.replace(b"\r\n", b"\n") if path.suffix in TEXT else data)
 
 
+def git_blob(root, commit, name):
+    result = subprocess.run(["git", "cat-file", "blob", commit + ":" + name], cwd=root,
+                            capture_output=True, timeout=20)
+    if result.returncode:
+        raise ValueError("historical source unavailable: " + name + UNSHALLOW)
+    return result.stdout
+
+
 def verify(root=ROOT, manifest_path=DEFAULT_MANIFEST):
     root = Path(root).resolve()
     manifest = json.loads(inside(root, manifest_path).read_text(encoding="utf-8"))
     commit = manifest["source_commit"]
-    if manifest.get("schema") != 1 or not re.fullmatch(r"[a-f0-9]{40}", commit):
+    if manifest.get("schema") != 2 or not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("invalid fixed historical source commit")
     if manifest["artifact_hash_policy"] != "SHA256; JSON/CSV CRLF normalized to LF; binary exact":
         raise ValueError("unknown historical artifact hash policy")
     if set(manifest["artifacts_sha256"]) != ARTIFACTS:
         raise ValueError("historical artifact identity set is incomplete")
+    if set(manifest["git_artifacts_sha256"]) != GIT_ARTIFACTS:
+        raise ValueError("historical Git artifact identity set is incomplete")
     for name, expected in manifest["artifacts_sha256"].items():
         if artifact_digest(inside(root, name)) != expected:
             raise ValueError("historical artifact changed: " + name)
-    summary = json.loads(inside(root, "results/summary.json").read_text(encoding="utf-8"))
-    mutation = json.loads(inside(root, "results/mutation_report.json").read_text(encoding="utf-8"))
+    summary = json.loads(inside(root, HISTORICAL + "summary.json").read_text(encoding="utf-8"))
+    mutation = json.loads(inside(root, HISTORICAL + "mutation_report.json").read_text(encoding="utf-8"))
     if summary["meta"]["n"] != manifest["encounters"]:
         raise ValueError("historical encounter count changed")
     profiles = {"evaluation": summary["meta"]["runtime_source_sha256"],
@@ -69,11 +87,7 @@ def verify(root=ROOT, manifest_path=DEFAULT_MANIFEST):
             inside(root, name)  # Reject path escape without reading current source.
             key = name
             if key not in raw_files:
-                result = subprocess.run(["git", "cat-file", "blob", commit + ":" + name], cwd=root,
-                                        capture_output=True, timeout=20)
-                if result.returncode:
-                    raise ValueError("historical source unavailable: " + name + "; fetch original Git history")
-                raw_files[key] = result.stdout
+                raw_files[key] = git_blob(root, commit, name)
             original = raw_files[key].replace(b"\r\n", b"\n")
             if policy[name] == "CRLF":
                 original = original.replace(b"\n", b"\r\n")
@@ -81,13 +95,17 @@ def verify(root=ROOT, manifest_path=DEFAULT_MANIFEST):
                 raise ValueError("unknown recorded source line ending: " + name)
             if digest(original) != expected:
                 raise ValueError("historical raw source fingerprint differs: " + label + " " + name)
-    archive = inside(root, "results/" + mutation["evidence_archive"])
-    if digest(archive.read_bytes()) != mutation["evidence_archive_sha256"]:
+    archive_name = "results/" + mutation["evidence_archive"]
+    if archive_name not in GIT_ARTIFACTS:
+        raise ValueError("unexpected historical mutation evidence archive")
+    archive_bytes = git_blob(root, commit, archive_name)
+    if (digest(archive_bytes) != mutation["evidence_archive_sha256"]
+            or digest(archive_bytes) != manifest["git_artifacts_sha256"][archive_name]):
         raise ValueError("historical mutation evidence archive changed")
     members = mutation["evidence_member_sha256"]
     if len(members) != 90:
         raise ValueError("historical mutation evidence identity set is incomplete")
-    with zipfile.ZipFile(archive) as zipped:
+    with zipfile.ZipFile(io.BytesIO(archive_bytes)) as zipped:
         names = [info.filename for info in zipped.infolist() if not info.is_dir()]
         if len(names) != len(set(names)) or set(names) != set(members):
             raise ValueError("historical mutation evidence member set changed")
@@ -100,7 +118,7 @@ def verify(root=ROOT, manifest_path=DEFAULT_MANIFEST):
                        != raw_files[name].replace(b"\r\n", b"\n"))
     return {"passed": True, "scope": "historical bytes/original source; no current engine evaluation",
             "source_commit": commit, "encounters": summary["meta"]["n"],
-            "artifact_count": len(manifest["artifacts_sha256"]),
+            "artifact_count": len(manifest["artifacts_sha256"]) + len(manifest["git_artifacts_sha256"]),
             "evaluation_source_files": len(profiles["evaluation"]),
             "mutation_source_files": len(profiles["mutation"]), "mutation_evidence_members": len(members),
             "current_runtime_matches_archived_evaluation": not different,

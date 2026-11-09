@@ -24,9 +24,11 @@ jobs:
         run: pip install -r requirements.txt
       - name: Build C++ core
         run: python cpp/build.py build
-      - name: Historical byte/source audit (does not evaluate the current engine)
-        run: python scripts/check_archived_results.py
-      - name: Current controller tests and Python/C++ agreement
+      - name: Tests and Python/C++ agreement
         run: python -m pytest -q
-      - name: README numbers match results files
+      - name: README blocks, Findings and source hashes match results/
         run: python scripts/make_readme.py --check
+      - name: No local machine paths in tracked files or ZIP members
+        run: python scripts/check_no_local_paths.py
+      - name: Historical results audit (docs/historical, source 0e85663)
+        run: python scripts/check_archived_results.py
