@@ -184,6 +184,7 @@ def publish_evidence(report, artifacts, out, replacements, user):
     return json.loads(text), leaks
 
 
+CI_MARKERS = ("CI", "BUILD_NUMBER")
 IGNORE = shutil.ignore_patterns(".git", "results", "build", "docs", "__pycache__", ".pytest_cache", ".venv", "venv")
 
 
@@ -274,6 +275,11 @@ def run_suite(tree, artifact_dir, timeout=900):
     junit.unlink(missing_ok=True)  # a failed new invocation cannot reuse a stale report
     env = os.environ.copy()
     env.pop("PYTEST_ADDOPTS", None)
+    # pytest prints an untruncated difflib diff when CI or BUILD_NUMBER is set; for a
+    # failed 20000-element comparison that takes longer than the timeout, so a planted
+    # bug would be reported as invalid on a CI runner and as caught on a laptop.
+    for name in CI_MARKERS:
+        env.pop(name, None)
     env.update(DAA_REQUIRE_CPP="1", PYTHONPATH=str(tree), PYTHONDONTWRITEBYTECODE="1",
                PYTHONIOENCODING="utf-8")
     command = [sys.executable, "-B", "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider",

@@ -68,9 +68,12 @@ def test_timeout_is_invalid_and_keeps_log(runner, tmp_path):
 def test_forces_cpp_and_removes_inherited_selection(runner, tmp_path, monkeypatch):
     monkeypatch.setenv("DAA_REQUIRE_CPP", "0")
     monkeypatch.setenv("PYTEST_ADDOPTS", "-k missing_test_name")
+    monkeypatch.setenv("CI", "true")  # would make pytest print untruncated diffs
+    monkeypatch.setenv("BUILD_NUMBER", "1")
     tree = toy_tree(tmp_path, "import os\ndef test_environment():\n"
                     "    assert os.environ['DAA_REQUIRE_CPP'] == '1'\n"
-                    "    assert 'PYTEST_ADDOPTS' not in os.environ\n")
+                    "    assert 'PYTEST_ADDOPTS' not in os.environ\n"
+                    "    assert 'CI' not in os.environ and 'BUILD_NUMBER' not in os.environ\n")
     result = runner.run_suite(tree, artifact_dir=tmp_path / "env")
     assert result["status"] == "passed"
     assert result["tests"] == 1
@@ -222,14 +225,16 @@ def test_timeout_reaps_real_descendants(runner, tmp_path, record_testsuite_prope
     marker, child_pid, grandchild_pid = [tmp_path / name for name in ("escaped.txt", "child.pid", "grandchild.pid")]
     grandchild = ("import os,time\nfrom pathlib import Path\n"
                   f"Path({str(grandchild_pid)!r}).write_text(str(os.getpid()))\n"
-                  f"time.sleep(6)\nPath({str(marker)!r}).write_text('escaped timeout')\n")
+                  f"time.sleep(14)\nPath({str(marker)!r}).write_text('escaped timeout')\n")
     child = ("import os,subprocess,sys,time\nfrom pathlib import Path\n"
              f"Path({str(child_pid)!r}).write_text(str(os.getpid()))\n"
-             f"subprocess.Popen([sys.executable, '-c', {grandchild!r}])\ntime.sleep(10)\n")
+             f"subprocess.Popen([sys.executable, '-c', {grandchild!r}])\ntime.sleep(20)\n")
     source = ("import subprocess,sys,time\ndef test_process_tree():\n"
-              f"    subprocess.Popen([sys.executable, '-c', {child!r}])\n    time.sleep(10)\n")
+              f"    subprocess.Popen([sys.executable, '-c', {child!r}])\n    time.sleep(20)\n")
     tree = toy_tree(tmp_path, source)
-    result = runner.run_suite(tree, artifact_dir=tmp_path / "tree-timeout", timeout=2)
+    # 8 s leaves room for three interpreter start-ups on a loaded machine; a surviving
+    # grandchild would write its marker at 14 s.
+    result = runner.run_suite(tree, artifact_dir=tmp_path / "tree-timeout", timeout=8)
     assert result["status"] == "invalid"
     assert child_pid.exists() and grandchild_pid.exists(), "toy descendants did not start"
     assert not marker.exists(), "descendant outlived the pytest timeout"
