@@ -406,7 +406,7 @@ Residual losses of well clear with avoidance, labelled (labels overlap; `results
 
 ### 8. Test-suite mutation check
 
-`scripts/mutation_check.py` planted 29 deliberate bugs, one at a time, in fresh copies of the repository; tests detected 29 of 29. The unmutated copy passed first (291 passed in 107.76s (0:01:47)).
+`scripts/mutation_check.py` planted 29 deliberate bugs, one at a time, in fresh copies of the repository; tests detected 29 of 29. The unmutated copy passed first (292 passed in 37.80s).
 Every case must compile the C++ core before pytest. Collection, setup, compiler, timeout and skipped-test outcomes invalidate the run rather than count as detections. The report retains per-case failure evidence; the logs and JUnit files are in [`results/mutation_evidence.zip`](results/mutation_evidence.zip), with local paths replaced by placeholders.
 
 | # | file | planted bug | result |
@@ -452,7 +452,7 @@ Every case must compile the C++ core before pytest. Collection, setup, compiler,
 pip install -r requirements.txt
 python -m pytest -q                      # needs g++, clang++ or MSVC for the C++ agreement tests
 python scripts/run_eval.py               # writes results/ and docs/ (about 8 min on a laptop CPU)
-python scripts/mutation_check.py         # optional, about 25 min: an unmutated control, then each planted bug
+python scripts/mutation_check.py         # optional, about 6 min on a CI runner: an unmutated control, then each planted bug
 python scripts/make_readme.py            # refresh the generated README blocks
 python scripts/make_readme.py --check    # fails if README, results/ and the current source disagree
 python scripts/check_no_local_paths.py   # fails if a tracked file contains a local machine path

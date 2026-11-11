@@ -1,12 +1,10 @@
 name: mutation-gate
 
 # Regenerates results/mutation_report.json and results/mutation_evidence.zip on a
-# clean Linux runner (about 25 min) and uploads them as an artifact. Commit the two
+# clean Linux runner (about 6 min) and uploads them as an artifact. Commit the two
 # files, then run `python scripts/make_readme.py` and `--check`.
 on:
   workflow_dispatch:
-  push:
-    branches: [fix/review-20261103]
 
 jobs:
   mutation:
