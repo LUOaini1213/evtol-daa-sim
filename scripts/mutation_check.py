@@ -8,10 +8,18 @@ Each mutant runs in a fresh copy of the repository (in a temp dir), so the
 working tree is never modified. The unmutated copy must pass first.
 JUnit and full build/test logs survive beside --out in *_artifacts/run_*.
 Without --out, --only writes mutation_report.only-N.json, preserving the full report.
+
+The published copy of that evidence is a deterministic ZIP beside the report
+(mutation_evidence.zip for the full report). Before packing, absolute paths of this
+machine (run directory, temporary trees, repository, Python install, home directory,
+user name) are replaced by placeholders such as <tmp>/ and <home>/; the report stores
+only relative member paths. A leftover personal path invalidates the run (exit 2).
 """
 from __future__ import annotations
 
 import argparse
+import getpass
+import hashlib
 import json
 import os
 import shutil
@@ -21,6 +29,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,6 +67,124 @@ MUTANTS = [
     ("daa/metrics.py", "    if x.size == 0 or x.size != y.size:", "    if x.size == 0:", "paired metrics accept unequal input lengths"),
 ]
 
+EVIDENCE_PREFIX = "mutation_evidence"
+SOURCE_DIRS = ("config", "cpp", "daa", "scripts", "tests")
+SOURCE_FILES = ("pytest.ini", "requirements.txt")
+SOURCE_SUFFIXES = {".py", ".cpp", ".hpp", ".json", ".ini", ".txt"}
+ZIP_DATE = (2026, 1, 1, 0, 0, 0)
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def source_hashes(tree):
+    """Raw-byte SHA-256 of the sources and tests the gate exercised (LF via .gitattributes)."""
+    tree = Path(tree)
+    files = [tree / name for name in SOURCE_FILES if (tree / name).is_file()]
+    for directory in SOURCE_DIRS:
+        if (tree / directory).is_dir():
+            files += [f for f in (tree / directory).rglob("*")
+                      if f.is_file() and f.suffix in SOURCE_SUFFIXES and "__pycache__" not in f.parts]
+    return {f.relative_to(tree).as_posix(): sha256(f.read_bytes()) for f in sorted(files)}
+
+
+def _path_variants(path):
+    text = str(path)
+    variants = {text, text.replace("\\", "/"), text.replace("/", "\\"), text.replace("\\", "\\\\")}
+    try:
+        resolved = str(Path(path).resolve())
+        variants |= {resolved, resolved.replace("\\", "/"), resolved.replace("\\", "\\\\")}
+    except OSError:
+        pass
+    return {v.rstrip("/\\") for v in variants if len(v.rstrip("/\\")) > 3}
+
+
+def path_replacements(prefixes):
+    """(variant, placeholder) pairs, longest first so nested prefixes collapse correctly."""
+    pairs = []
+    for path, label in prefixes:
+        if path:
+            pairs += [(variant, label) for variant in _path_variants(path)]
+    return sorted(set(pairs), key=lambda pair: -len(pair[0]))
+
+
+def scrub(text, replacements, user):
+    for variant, label in replacements:
+        index = text.lower().find(variant.lower()) if os.name == "nt" else text.find(variant)
+        while index >= 0:
+            text = text[:index] + label + text[index + len(variant):]
+            start = index + len(label)
+            index = (text.lower().find(variant.lower(), start) if os.name == "nt"
+                     else text.find(variant, start))
+    if user:
+        text = text.replace("pytest-of-" + user, "pytest-of-<user>")
+    return text
+
+
+def personal_markers(text, user):
+    """Return what still identifies the machine owner after scrubbing."""
+    hits = []
+    home = str(Path.home())
+    for marker in {home, home.replace("\\", "/")}:
+        if marker and marker.lower() in text.lower():
+            hits.append(marker)
+    if user and len(user) >= 2:
+        for sep in ("\\", "/"):
+            needle = sep + user.lower() + sep
+            if needle in text.lower():
+                hits.append(needle)
+    return hits
+
+
+def publish_evidence(report, artifacts, out, replacements, user):
+    """Scrub evidence, pack a deterministic ZIP beside the report and use relative paths."""
+    artifacts = Path(artifacts)
+    archive = out.parent / ("mutation_evidence.zip" if out.name == "mutation_report.json"
+                            else out.stem + "_evidence.zip")
+    members, leaks = {}, []
+    for f in sorted(p for p in artifacts.rglob("*") if p.is_file()):
+        rel = f.relative_to(artifacts).as_posix()
+        if rel.startswith("cpp-build/") or "/cpp-build/" in rel:
+            continue  # compiled binaries are not evidence
+        text = f.read_bytes().decode("utf-8", errors="replace")
+        clean = scrub(text, replacements, user)
+        f.write_text(clean, encoding="utf-8", newline="")
+        data = clean.encode("utf-8")
+        name = EVIDENCE_PREFIX + "/" + rel
+        members[name] = data
+        leaks += [name + ": " + hit for hit in personal_markers(clean, user)]
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
+        for name, data in members.items():
+            info = zipfile.ZipInfo(name, date_time=ZIP_DATE)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            zipped.writestr(info, data)
+
+    def relative(value):
+        if not value:
+            return value
+        path = Path(value)
+        try:
+            return EVIDENCE_PREFIX + "/" + path.resolve().relative_to(artifacts.resolve()).as_posix()
+        except ValueError:
+            return scrub(str(value), replacements, user)
+
+    for entry in [report["baseline"]] + report["mutants"]:
+        if entry:
+            for key in ("junit", "log", "build_log"):
+                if key in entry:
+                    entry[key] = relative(entry[key])
+    report["artifacts_dir"] = EVIDENCE_PREFIX
+    report["evidence_archive"] = archive.name
+    report["evidence_archive_sha256"] = sha256(archive.read_bytes())
+    report["evidence_member_sha256"] = {name: sha256(data) for name, data in members.items()}
+    text = scrub(json.dumps(report, indent=1), replacements, user)
+    leaks += ["report: " + hit for hit in personal_markers(text, user)]
+    return json.loads(text), leaks
+
+
+CI_MARKERS = ("CI", "BUILD_NUMBER")
 IGNORE = shutil.ignore_patterns(".git", "results", "build", "docs", "__pycache__", ".pytest_cache", ".venv", "venv")
 
 
@@ -148,6 +275,11 @@ def run_suite(tree, artifact_dir, timeout=900):
     junit.unlink(missing_ok=True)  # a failed new invocation cannot reuse a stale report
     env = os.environ.copy()
     env.pop("PYTEST_ADDOPTS", None)
+    # pytest prints an untruncated difflib diff when CI or BUILD_NUMBER is set; for a
+    # failed 20000-element comparison that takes longer than the timeout, so a planted
+    # bug would be reported as invalid on a CI runner and as caught on a laptop.
+    for name in CI_MARKERS:
+        env.pop(name, None)
     env.update(DAA_REQUIRE_CPP="1", PYTHONPATH=str(tree), PYTHONDONTWRITEBYTECODE="1",
                PYTHONIOENCODING="utf-8")
     command = [sys.executable, "-B", "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider",
@@ -163,7 +295,7 @@ def run_suite(tree, artifact_dir, timeout=900):
         try:
             built = _run_command(
                 [sys.executable, "-B", str(tree / "cpp" / "build.py"), str(artifact_dir / "cpp-build")],
-                cwd=tree, env=env, timeout=min(timeout, 120))
+                cwd=tree, env=env, timeout=min(timeout, 360))  # MSVC setup alone can take minutes on a busy machine
             build_returncode = built.returncode
             build_output = built.stdout + "\n--- stderr ---\n" + built.stderr
             if build_returncode != 0:
@@ -224,6 +356,11 @@ def main(argv=None):
     artifacts = Path(tempfile.mkdtemp(prefix="run_", dir=artifact_root))
     report = dict(mutants=[], baseline=None, selected_indices=[i for i, _ in sel],
                   artifacts_dir=str(artifacts), cpp_required=True)
+    try:
+        user = getpass.getuser()
+    except (KeyError, OSError):
+        user = ""
+    temp_root = {}
 
     def ignore(directory, names):
         excluded = {out.resolve(), artifact_root.resolve()}
@@ -238,14 +375,32 @@ def main(argv=None):
                     and report["total"] == len(sel) and report["invalid"] == 0)
         report["status"] = "complete" if complete else "invalid"
         report["complete_full_matrix"] = complete and args.only is None
-        out.write_text(json.dumps(report, indent=1), encoding="utf-8")
+        replacements = path_replacements([
+            (artifacts, "<evidence>"), (temp_root.get("tmp"), "<tmp>"), (ROOT, "<repo>"),
+            (sys.prefix, "<python>"), (sys.base_prefix, "<python>"),
+            (tempfile.gettempdir(), "<tmp>"), (Path.home(), "<home>")])
+        published, leaks = publish_evidence(report, artifacts, out, replacements, user)
+        if leaks:
+            complete = False
+            published["status"] = "invalid"
+            published["complete_full_matrix"] = False
+            published["privacy_leaks"] = leaks
+            print("personal paths remain in evidence: " + "; ".join(leaks[:5]), file=sys.stderr)
+        report.clear()
+        report.update(published)
+        out.write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8", newline="\n")
         if not complete:
             return 2
         return 0 if report["caught"] == len(sel) else 1
 
     with tempfile.TemporaryDirectory(prefix="daa_mut_") as tmp:
+        temp_root["tmp"] = tmp
         base = Path(tmp) / "base"
         shutil.copytree(ROOT, base, ignore=ignore)
+        report["source_test_config_sha256"] = source_hashes(base)
+        report["source_hash_method"] = ("SHA256 of raw bytes of config/, cpp/, daa/, scripts/, tests/ "
+                                        "(.py/.cpp/.hpp/.json/.ini/.txt), pytest.ini and requirements.txt "
+                                        "as copied into the unmutated tree")
         baseline = run_suite(base, artifacts / "baseline")
         report["baseline"] = baseline
         print(f"baseline: {baseline['status']} {baseline['summary']}", flush=True)

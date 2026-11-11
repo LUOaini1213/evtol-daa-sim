@@ -1,18 +1,28 @@
-"""Render the results section of README.md from results/summary.json.
+"""Render the summary and results sections of README.md from results/.
 
-    python scripts/make_readme.py          # rewrite the generated block in README.md
-    python scripts/make_readme.py --check  # exit 1 if README.md differs from the results
+    python scripts/make_readme.py          # rewrite the generated blocks in README.md
+    python scripts/make_readme.py --check  # exit 1 if README.md, the results files and the
+                                           # current source disagree (see check_provenance)
+
+--check also re-tests every claim in the hand-written Findings (check_findings), so a
+re-run that changes an ordering fails CI instead of leaving stale prose.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.util
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BEGIN = "<!-- BEGIN GENERATED RESULTS (scripts/make_readme.py) -->"
 END = "<!-- END GENERATED RESULTS -->"
+TLDR_BEGIN = "<!-- BEGIN GENERATED SUMMARY (scripts/make_readme.py) -->"
+TLDR_END = "<!-- END GENERATED SUMMARY -->"
+HISTORICAL_SUMMARY = "docs/historical/0e85663/summary.json"
 NAMES = {"cpa": "CPA thresholds", "wcv": "WCV", "wcv_tau": "WCV + tau_mod 20 s"}
 
 
@@ -39,22 +49,17 @@ def table(header, rows):
 
 
 def render_mutation(mut):
-    L = ["### 8. Historical test-suite mutation check", ""]
+    L = ["### 8. Test-suite mutation check", ""]
     L.append(f"`scripts/mutation_check.py` planted {mut['total']} deliberate bugs, one at a time, in fresh "
              f"copies of the repository; tests detected {mut['caught']} of {mut['total']}. "
              f"The unmutated copy passed first ({mut['baseline']['summary']}).")
     if mut.get("cpp_required"):
         L.append("Every case must compile the C++ core before pytest. Collection, setup, compiler, "
                  "timeout and skipped-test outcomes invalidate the run rather than count as detections. "
-                 "The report retains per-case failure evidence and full logs/JUnit files.")
+                 "The report retains per-case failure evidence; the logs and JUnit files are in "
+                 "[`results/mutation_evidence.zip`](results/mutation_evidence.zip), with local paths replaced "
+                 "by placeholders.")
     L.append("")
-    first = mut.get("_first_run")
-    if first:
-        surv = [m["description"] for m in first["mutants"] if not m["caught"]]
-        L.append(f"The archived initial implementation's first run caught {first['caught']} of {first['total']}; "
-                 f"the survivor ({'; '.join(surv) or 'none'}) led to exact-threshold tests. "
-                 "That file is historical evidence, not a rerun of the current source or current mutation harness.")
-        L.append("")
     rows = [[m["index"], f"`{m['file']}`", m["description"], "caught" if m["caught"] else "SURVIVED"]
             for m in mut["mutants"]]
     L.append(table(["#", "file", "planted bug", "result"], rows))
@@ -64,14 +69,12 @@ def render_mutation(mut):
 def render(res):
     m = res["meta"]
     L = []
-    L.append("These are preserved historical evaluations of [source commit "
-             "`0e8566360e02e7d2c5afb45018578ea80c05f13a`](https://github.com/LUOaini1213/evtol-daa-sim/tree/0e8566360e02e7d2c5afb45018578ea80c05f13a). "
-             "They do not evaluate the current altitude-constrained controller. No new 6,000-encounter evaluation "
-             "or full mutation gate is claimed for that controller; see [the local regression scope](docs/ALTITUDE_CONSTRAINTS.md).")
-    L.append("")
-    L.append(f"Historical numbers below were produced by that version of `scripts/run_eval.py` (seed {m['seed']}, "
-             f"{m['n']} encounters) and rendered by `scripts/make_readme.py`. Brackets are 95% "
-             "Wilson intervals for rates and 95% paired-bootstrap intervals for differences and ratios.")
+    L.append(f"Numbers below were produced by `scripts/run_eval.py` on the current code (seed {m['seed']}, "
+             f"{m['n']} encounters) and rendered by `scripts/make_readme.py`. `results/summary.json` records the "
+             "SHA-256 of every source file the run used, and `make_readme.py --check` (run in CI) fails if any of "
+             "them has changed since. Brackets are 95% Wilson intervals for rates and 95% paired-bootstrap "
+             "intervals for differences and ratios. Results of the earlier controller (source `0e85663`) are kept "
+             "in [docs/historical/](docs/historical/README.md).")
     L.append("")
     gc = m["geometry_counts"]
     ic = m["intruder_counts"]
@@ -225,6 +228,198 @@ def render(res):
     return "\n".join(L)
 
 
+def _rate(res, cond, strategy, metric):
+    return next(r for r in res["open_loop"] if r["condition"] == cond and r["strategy"] == strategy
+                and r["filter"] == "filtered")[metric]
+
+
+def _closed(res, cond, strategy, policy):
+    return next(r for r in res["closed_loop"] if r["condition"] == cond and r["policy"] == policy
+                and (policy == "none" or r["strategy"] == strategy))
+
+
+def _paired(res, cond, a, b, metric):
+    return next(p for p in res["open_loop_paired"] if p["condition"] == cond and p["a"] == a
+                and p["b"] == b and p["metric"] == metric)
+
+
+def _class(res, strategy, by, value):
+    return next(b for b in res["open_loop_breakdown"] if b["strategy"] == strategy and b["by"] == by
+                and b["value"] == value)["missed_or_late"]
+
+
+def render_tldr(res):
+    m = res["meta"]
+    ml = _paired(res, "nominal", "wcv", "cpa", "missed_or_late")["diff"]
+    nu = _paired(res, "nominal", "wcv", "cpa", "nuisance")["diff"]
+    none = _closed(res, "nominal", None, "none")["lowc"]
+    best = min((r for r in res["closed_loop"] if r["condition"] == "nominal" and r["policy"] != "none"),
+               key=lambda r: r["lowc"]["p"])
+    turn, straight = (_class(res, "wcv", "intruder_turn", v) for v in ("turning", "straight"))
+    delay = {(d["policy"], d["delay"]): d["lowc"] for d in res["delay_sensitivity"]}
+    mut = res.get("_mutation")
+    L = [f"**Built:** a Monte-Carlo detect-and-avoid simulator for an eVTOL: {m['n']} synthetic encounters, "
+         "three alerting logics (CPA thresholds, DAIDALUS-style well-clear, well-clear + modified tau) x four "
+         "avoidance policies, paired McNemar/bootstrap statistics, and a C++17 alerting core that must match "
+         "the Python output exactly."
+         + (f" A mutation gate plants {mut['total']} bugs; the tests catch {mut['caught']}." if mut else ""),
+         "",
+         "**Found** (nominal surveillance, filtered alerts, this synthetic setup only):",
+         "",
+         f"- Well-clear (WCV) alerting cuts missed-or-late alerts by {-100 * ml['diff']:.1f} points "
+         f"[{-100 * ml['hi']:.1f}, {-100 * ml['lo']:.1f}] versus CPA thresholds, at the cost of "
+         f"{100 * nu['diff']:+.1f} points of nuisance alerts.",
+         f"- With avoidance, loss of well clear falls from {100 * none['p']:.1f}% (no manoeuvre) to "
+         f"{100 * best['lowc']['p']:.1f}% at best ({NAMES[best['strategy']]} + {best['policy']}).",
+         f"- Unannounced intruder turns are the main failure mode: WCV misses or is late on "
+         f"{100 * turn['p']:.1f}% of hazardous turning encounters versus {100 * straight['p']:.1f}% of straight ones.",
+         f"- Response delay matters: WCV + heading loses well clear in {100 * delay[('heading', 5.0)]['p']:.1f}% "
+         f"of encounters at 5 s and {100 * delay[('heading', 20.0)]['p']:.1f}% at 20 s.",
+         "",
+         "**Limits:** encounters are synthetic and not fitted to traffic data; point-mass kinematics; "
+         "single intruder that never manoeuvres in response; gusts are not bounded; this is not DAIDALUS and "
+         "DO-365 compliance was not assessed."]
+    return "\n".join(L)
+
+
+def cited_numbers(res):
+    """The numbers the hand-written Findings quote, formatted exactly as they appear."""
+    def best_scale(st):
+        pts = [p for p in res["sweep"] if p["kind"] == "scale" and p["strategy"] == st and p["nuisance"]["p"] <= 0.10]
+        return f"{100 * min(p['missed_or_late']['p'] for p in pts):.1f}%"
+
+    def lowc(c, st, pol):
+        return str(_closed(res, c, st, pol)["lowc"]["k"])
+
+    def cl_p(c, a, b):
+        return f"p={next(x for x in res['closed_loop_paired'] if x['condition'] == c and x['a'] == a and x['b'] == b)['mcnemar']['p']:.3f}"
+
+    abl = next(a for a in res["replan_ablation"] if a["condition"] == "degraded" and a["strategy"] == "wcv"
+               and a["policy"] == "vertical")
+    geo = {v: _class(res, "cpa", "geometry", v) for v in ("head_on", "crossing", "overtaking", "vertical")}
+    old = json.loads((ROOT / HISTORICAL_SUMMARY).read_text(encoding="utf-8"))
+    return {
+        "F1 CPA scale point": best_scale("cpa"), "F1 WCV scale point": best_scale("wcv"),
+        "F1 WCV+tau scale point": best_scale("wcv_tau"),
+        "F2 overtaking rate": f"{100 * geo['overtaking']['p']:.1f}%", "F2 vertical rate": f"{100 * geo['vertical']['p']:.1f}%",
+        "F2 vertical count": f"contributes {geo['vertical']['k']} cases",
+        "F2 head-on/crossing counts": f"versus {geo['head_on']['k']} head-on and {geo['crossing']['k']} crossing",
+        "F5 nominal counts": f"{lowc('nominal', 'wcv', 'vertical')} versus {lowc('nominal', 'wcv', 'heading')} under nominal",
+        "F5 degraded counts": f"{lowc('degraded', 'wcv', 'vertical')} versus {lowc('degraded', 'wcv', 'heading')} under degraded",
+        "F5 p values": f"McNemar {cl_p('nominal', 'wcv/vertical', 'wcv/heading')} and "
+                       f"{cl_p('degraded', 'wcv/vertical', 'wcv/heading')[2:]}",
+        "F6 counts": f"from {abl['one_shot']['k']} to {abl['replan']['k']}, with p={abl['mcnemar']['p']:.3f}",
+        "F9 changed loss counts": " and ".join(
+            f"{NAMES[x['strategy']]} + {x['policy']} ({x['lowc']['k']} to {y['lowc']['k']})"
+            for x, y in zip(old["closed_loop"], res["closed_loop"]) if x["lowc"]["k"] != y["lowc"]["k"]),
+        "F9 open loop identical": "open-loop alerting tables are identical" if all(
+            old[k] == res[k] for k in ("open_loop", "open_loop_paired", "sweep")) else "(open loop changed)",
+    }
+
+
+def check_findings(res, readme=None):
+    """Each hand-written Finding in README.md, as a test on results/summary.json."""
+    problems = []
+    if readme is not None:
+        section = readme.split("## Findings", 1)[-1].split("\n## ", 1)[0]
+        flat = " ".join(section.split())
+        for label, text in cited_numbers(res).items():
+            if text not in flat:
+                problems.append(f"Findings must quote {label} as '{text}'")
+
+    def claim(ok, text):
+        if not ok:
+            problems.append(text)
+
+    S = list(NAMES)
+    for c in ("nominal", "degraded"):
+        cpa_ml = _rate(res, c, "cpa", "missed_or_late")["p"]
+        cpa_nu = _rate(res, c, "cpa", "nuisance")["p"]
+        for st in ("wcv", "wcv_tau"):
+            claim(_rate(res, c, st, "missed_or_late")["p"] < cpa_ml, f"F1 {c}: {st} missed-or-late below CPA")
+            claim(_rate(res, c, st, "nuisance")["p"] > cpa_nu, f"F1 {c}: {st} nuisance above CPA")
+    for cap in (0.10, 0.15, 0.20):
+        best = {}
+        for st in S:
+            pts = [p for p in res["sweep"] if p["kind"] == "time" and p["strategy"] == st and p["nuisance"]["p"] <= cap]
+            best[st] = min(p["missed_or_late"]["p"] for p in pts) if pts else 1.0
+        claim(best["wcv"] < best["cpa"] and best["wcv_tau"] < best["cpa"],
+              f"F1 time sweep cap {cap}: WCV logics below CPA")
+    scale10 = {}
+    for st in S:
+        pts = [p for p in res["sweep"] if p["kind"] == "scale" and p["strategy"] == st and p["nuisance"]["p"] <= 0.10]
+        scale10[st] = min(p["missed_or_late"]["p"] for p in pts) if pts else 1.0
+    claim(scale10["cpa"] < min(scale10["wcv"], scale10["wcv_tau"]), "F1 scale sweep 10% cap: CPA lowest")
+    geo = {v: _class(res, "cpa", "geometry", v) for v in ("head_on", "crossing", "overtaking", "vertical")}
+    claim(max(geo, key=lambda v: geo[v]["p"]) == "overtaking", "F2: CPA worst class is overtaking")
+    for st in ("wcv", "wcv_tau"):
+        rates = [b["missed_or_late"]["p"] for b in res["open_loop_breakdown"] if b["strategy"] == st]
+        turn = _class(res, st, "intruder_turn", "turning")["p"]
+        claim(turn == max(rates), f"F3: turning intruders are the worst class for {st}")
+        claim(turn >= 2 * _class(res, st, "intruder_turn", "straight")["p"], f"F3: {st} turning >= 2x straight")
+    for c in ("ideal", "nominal", "degraded"):
+        for st in S:
+            raw = next(r for r in res["open_loop"] if r["condition"] == c and r["strategy"] == st and r["filter"] == "raw")
+            filt = next(r for r in res["open_loop"] if r["condition"] == c and r["strategy"] == st and r["filter"] == "filtered")
+            claim(filt["missed_or_late"]["p"] < raw["missed_or_late"]["p"] and filt["nuisance"]["p"] < raw["nuisance"]["p"],
+                  f"F4 {c} {st}: filter lowers both rates")
+            claim(filt["missed_first_alert"]["p"] < filt["missed_or_late"]["p"], f"F4 {c} {st}: first-alert credit lower")
+    for c in ("nominal", "degraded"):
+        base = _closed(res, c, None, "none")["lowc"]["p"]
+        for r in res["closed_loop"]:
+            if r["condition"] == c and r["policy"] != "none":
+                claim(r["lowc"]["p"] < base, f"F5 {c} {r['strategy']}/{r['policy']}: below no-manoeuvre")
+        claim(_closed(res, c, "wcv", "combined")["lowc"]["k"] < _closed(res, c, "wcv", "heading")["lowc"]["k"],
+              f"F5 {c}: WCV combined below WCV heading")
+    for a in res["replan_ablation"]:
+        claim(a["replan"]["k"] <= a["one_shot"]["k"], f"F6 {a['condition']} {a['strategy']}/{a['policy']}: re-plan not worse")
+    for pol in ("heading", "vertical"):
+        d = sorted((x["delay"], x["lowc"]["p"]) for x in res["delay_sensitivity"] if x["policy"] == pol)
+        claim(all(b[1] >= a[1] for a, b in zip(d, d[1:])), f"F7 {pol}: LoWC non-decreasing in delay")
+        steps = [b[1] - a[1] for a, b in zip(d, d[1:])]
+        claim(steps[-1] == max(steps), f"F7 {pol}: steepest step is the last one")
+    v20 = next(x for x in res["delay_sensitivity"] if x["policy"] == "vertical" and x["delay"] == 20.0)["lowc"]["p"]
+    h20 = next(x for x in res["delay_sensitivity"] if x["policy"] == "heading" and x["delay"] == 20.0)["lowc"]["p"]
+    claim(v20 > h20, "F7: vertical worse than heading at 20 s")
+    for f in res["closed_loop_failures"]:
+        if f["condition"] == "degraded":
+            claim(2 * f["drone_intruder"] > f["n_lowc"], f"F8 {f['strategy']}/{f['policy']}: drones are the majority")
+    return problems
+
+
+def _load(name):
+    spec = importlib.util.spec_from_file_location(name + "_for_readme", ROOT / "scripts" / (name + ".py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_provenance(res, results_dir):
+    """Results must describe the current source: same file hashes, same evidence bytes."""
+    problems = []
+    run_eval = _load("run_eval")
+    if res["meta"]["runtime_source_sha256"] != run_eval.runtime_source_sha256():
+        problems.append("results/summary.json was produced by different source files than the current "
+                        "checkout (rerun: python scripts/run_eval.py)")
+    mut = res.get("_mutation")
+    if mut is None:
+        return problems + ["results/mutation_report.json is missing"]
+    if mut.get("status") != "complete" or not mut.get("complete_full_matrix"):
+        problems.append("mutation report is not a complete full run")
+    if mut.get("source_test_config_sha256") != _load("mutation_check").source_hashes(ROOT):
+        problems.append("results/mutation_report.json was produced by different sources/tests than the "
+                        "current checkout (rerun: python scripts/mutation_check.py)")
+    archive = Path(results_dir) / mut.get("evidence_archive", "")
+    if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != mut.get("evidence_archive_sha256"):
+        problems.append("mutation evidence archive missing or changed")
+    else:
+        with zipfile.ZipFile(archive) as zipped:
+            got = {n: hashlib.sha256(zipped.read(n)).hexdigest() for n in zipped.namelist()}
+        if got != mut.get("evidence_member_sha256"):
+            problems.append("mutation evidence members differ from the report")
+    return problems
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
@@ -235,22 +430,25 @@ def main(argv=None):
     mut = Path(args.results).with_name("mutation_report.json")
     if mut.exists():
         res["_mutation"] = json.loads(mut.read_text(encoding="utf-8"))
-        first = Path(args.results).with_name("mutation_report_first_run.json")
-        if first.exists():
-            res["_mutation"]["_first_run"] = json.loads(first.read_text(encoding="utf-8"))
     readme = Path(args.readme).read_text(encoding="utf-8")
-    if BEGIN not in readme or END not in readme:
-        print("README markers missing", file=sys.stderr)
-        return 1
-    head, rest = readme.split(BEGIN, 1)
-    _, tail = rest.split(END, 1)
-    new = head + BEGIN + "\n" + render(res) + "\n" + END + tail
-    if args.check:
-        if new != readme:
-            print("README.md results are out of date with results/summary.json "
-                  "(run: python scripts/make_readme.py)", file=sys.stderr)
+    new = readme
+    for begin, end, body in ((TLDR_BEGIN, TLDR_END, render_tldr(res)), (BEGIN, END, render(res))):
+        if begin not in new or end not in new:
+            print("README markers missing: " + begin, file=sys.stderr)
             return 1
-        print("README.md matches results/summary.json")
+        head, rest = new.split(begin, 1)
+        _, tail = rest.split(end, 1)
+        new = head + begin + "\n" + body + "\n" + end + tail
+    if args.check:
+        problems = check_findings(res, new) + check_provenance(res, Path(args.results).parent)
+        if new != readme:
+            problems.insert(0, "README.md generated blocks are out of date with results/ "
+                               "(run: python scripts/make_readme.py)")
+        if problems:
+            for problem in problems:
+                print("FAIL " + problem, file=sys.stderr)
+            return 1
+        print("README.md matches results/; Findings hold; results match the current source")
         return 0
     Path(args.readme).write_text(new, encoding="utf-8", newline="\n")
     print("README.md updated")

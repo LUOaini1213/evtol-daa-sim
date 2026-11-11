@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import time
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -41,7 +42,8 @@ def toy_tree(tmp_path, source):
 ])
 def test_real_pytest_outcome_classification(runner, tmp_path, source, status):
     tree = toy_tree(tmp_path, source)
-    result = runner.run_suite(tree, artifact_dir=tmp_path / "evidence", timeout=30)
+    # Generous: a loaded machine must not turn a toy run into a timeout (invalid).
+    result = runner.run_suite(tree, artifact_dir=tmp_path / "evidence", timeout=180)
     assert result["status"] == status
     assert Path(result["log"]).is_file()
     assert Path(result["log"]).read_text(encoding="utf-8")
@@ -66,9 +68,12 @@ def test_timeout_is_invalid_and_keeps_log(runner, tmp_path):
 def test_forces_cpp_and_removes_inherited_selection(runner, tmp_path, monkeypatch):
     monkeypatch.setenv("DAA_REQUIRE_CPP", "0")
     monkeypatch.setenv("PYTEST_ADDOPTS", "-k missing_test_name")
+    monkeypatch.setenv("CI", "true")  # would make pytest print untruncated diffs
+    monkeypatch.setenv("BUILD_NUMBER", "1")
     tree = toy_tree(tmp_path, "import os\ndef test_environment():\n"
                     "    assert os.environ['DAA_REQUIRE_CPP'] == '1'\n"
-                    "    assert 'PYTEST_ADDOPTS' not in os.environ\n")
+                    "    assert 'PYTEST_ADDOPTS' not in os.environ\n"
+                    "    assert 'CI' not in os.environ and 'BUILD_NUMBER' not in os.environ\n")
     result = runner.run_suite(tree, artifact_dir=tmp_path / "env")
     assert result["status"] == "passed"
     assert result["tests"] == 1
@@ -128,9 +133,14 @@ def test_main_toy_mutants_exit_codes_and_persistent_evidence(
     assert report["mutants"][0]["status"] == expected
     assert report["caught"] == int(expected == "caught")
     assert report["invalid"] == int(expected == "invalid")
-    assert Path(report["artifacts_dir"]).parent.name == "report_artifacts"
-    assert Path(report["baseline"]["junit"]).is_file()
-    assert Path(report["mutants"][0]["log"]).is_file()
+    assert report["artifacts_dir"] == "mutation_evidence"
+    with zipfile.ZipFile(out.parent / report["evidence_archive"]) as zipped:
+        names = set(zipped.namelist())
+    assert report["evidence_archive"] == "report_evidence.zip"
+    assert set(report["evidence_member_sha256"]) == names
+    assert report["baseline"]["junit"] in names and report["mutants"][0]["log"] in names
+    assert next((out.parent / "report_artifacts").glob("run_*/baseline/pytest.xml")).is_file()
+    assert report["source_test_config_sha256"]["tests/test_toy.py"]
     assert (tree / "toy_value.py").read_bytes() == original
 
 
@@ -215,14 +225,16 @@ def test_timeout_reaps_real_descendants(runner, tmp_path, record_testsuite_prope
     marker, child_pid, grandchild_pid = [tmp_path / name for name in ("escaped.txt", "child.pid", "grandchild.pid")]
     grandchild = ("import os,time\nfrom pathlib import Path\n"
                   f"Path({str(grandchild_pid)!r}).write_text(str(os.getpid()))\n"
-                  f"time.sleep(6)\nPath({str(marker)!r}).write_text('escaped timeout')\n")
+                  f"time.sleep(14)\nPath({str(marker)!r}).write_text('escaped timeout')\n")
     child = ("import os,subprocess,sys,time\nfrom pathlib import Path\n"
              f"Path({str(child_pid)!r}).write_text(str(os.getpid()))\n"
-             f"subprocess.Popen([sys.executable, '-c', {grandchild!r}])\ntime.sleep(10)\n")
+             f"subprocess.Popen([sys.executable, '-c', {grandchild!r}])\ntime.sleep(20)\n")
     source = ("import subprocess,sys,time\ndef test_process_tree():\n"
-              f"    subprocess.Popen([sys.executable, '-c', {child!r}])\n    time.sleep(10)\n")
+              f"    subprocess.Popen([sys.executable, '-c', {child!r}])\n    time.sleep(20)\n")
     tree = toy_tree(tmp_path, source)
-    result = runner.run_suite(tree, artifact_dir=tmp_path / "tree-timeout", timeout=2)
+    # 8 s leaves room for three interpreter start-ups on a loaded machine; a surviving
+    # grandchild would write its marker at 14 s.
+    result = runner.run_suite(tree, artifact_dir=tmp_path / "tree-timeout", timeout=8)
     assert result["status"] == "invalid"
     assert child_pid.exists() and grandchild_pid.exists(), "toy descendants did not start"
     assert not marker.exists(), "descendant outlived the pytest timeout"
@@ -235,3 +247,42 @@ def test_timeout_reaps_real_descendants(runner, tmp_path, record_testsuite_prope
     assert result["timeout_process"]["returncode"] is not None
     record_testsuite_property("timeout_descendant_pids", json.dumps(pids))
     record_testsuite_property("timeout_cleanup", json.dumps(result["timeout_process"]))
+
+
+PATH_PRINTER = ("import os, pathlib\nfrom toy_value import VALUE\n"
+                "def test_value():\n"
+                "    print('HOME=' + str(pathlib.Path.home()), 'CWD=' + os.getcwd(), 'FILE=' + __file__)\n"
+                "    assert VALUE == 1\n")
+
+
+def _toy_run(runner, tmp_path, monkeypatch):
+    tree = toy_tree(tmp_path, PATH_PRINTER)
+    (tree / "toy_value.py").write_text("VALUE = 1\n", encoding="utf-8")
+    monkeypatch.setattr(runner, "ROOT", tree)
+    monkeypatch.setattr(runner, "MUTANTS", [("toy_value.py", "VALUE = 1", "VALUE = 2", "toy")])
+    out = tmp_path / "reports" / "mutation_report.json"
+    out.parent.mkdir()
+    return out, runner.main(["--out", str(out)])
+
+
+def test_published_evidence_has_no_absolute_local_paths(runner, tmp_path, monkeypatch):
+    out, code = _toy_run(runner, tmp_path, monkeypatch)
+    assert code == 0
+    report_text = out.read_text(encoding="utf-8")
+    home = str(Path.home())
+    with zipfile.ZipFile(out.parent / "mutation_evidence.zip") as zipped:
+        texts = {name: zipped.read(name).decode("utf-8") for name in zipped.namelist()}
+    log = texts["mutation_evidence/mutant_000/pytest.log"]
+    assert "HOME=<home>" in log and "CWD=<tmp>" in log  # the failing test really printed paths
+    for text in [report_text, *texts.values()]:
+        assert home.lower() not in text.lower()
+        assert home.replace("\\", "/").lower() not in text.lower()
+        assert str(tmp_path).lower() not in text.lower()
+
+
+def test_unscrubbed_personal_path_invalidates_the_gate(runner, tmp_path, monkeypatch):
+    monkeypatch.setattr(runner, "scrub", lambda text, replacements, user: text)
+    out, code = _toy_run(runner, tmp_path, monkeypatch)
+    assert code == 2
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["status"] == "invalid" and report["privacy_leaks"]

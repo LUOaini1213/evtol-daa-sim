@@ -1,0 +1,4 @@
+# Same bytes on every OS: source hashes in results/*.json are of LF checkouts.
+* text=auto eol=lf
+*.png -text
+*.zip -text
